@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-func Handlers() map[string]func(s string) {
+func Handlers() map[string]func(b []byte) bool {
 	return handlers
 }
 

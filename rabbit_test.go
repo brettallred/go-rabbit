@@ -1,13 +1,24 @@
 package rabbit_test
 
 import (
-	"github.com/brettallred/rabbit"
+	"encoding/json"
+	"log"
 	"os"
 	"testing"
+
+	"github.com/brettallred/rabbit"
 )
 
-func SampleEventsCreatedHandler(payload string) {
+type TestEvent struct {
+	Name  string `json: Name`
+	Email string `json: Email`
+}
 
+func SampleEventsCreatedHandler(payload []byte) bool {
+	event := TestEvent{}
+	json.Unmarshal(payload, &event)
+	log.Printf("%s", event)
+	return true
 }
 
 /*
@@ -21,11 +32,12 @@ func TestMain(m *testing.M) {
 
 func TestRegisterSubscriber(t *testing.T) {
 	subscriber := rabbit.Subscriber{
-		Queue:      "test.sample.event.created",
-		RoutingKey: "sample.event.created",
-		Exchange:   "events",
-		AutoAck:    false,
-		Durable:    true,
+		AutoAck:     false,
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events",
+		Queue:       "test.sample.event.created",
+		RoutingKey:  "sample.test_event.created",
 	}
 	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
 
@@ -41,11 +53,12 @@ func TestRegisterSubscriber(t *testing.T) {
 func TestStartingSubscribers(t *testing.T) {
 
 	subscriber := rabbit.Subscriber{
-		Queue:      "test.sample.event.created",
-		RoutingKey: "sample.event.created",
-		Exchange:   "events",
-		AutoAck:    false,
-		Durable:    true,
+		AutoAck:     false,
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events",
+		Queue:       "test.sample.event.created",
+		RoutingKey:  "sample.event.created",
 	}
 
 	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)

@@ -6,15 +6,16 @@ import (
 
 var (
 	subscribers map[string]Subscriber
-	handlers    map[string]func(s string)
+	handlers    map[string]func(b []byte) bool
 )
 
 type Subscriber struct {
-	AutoAck    bool
-	Durable    bool
-	Exchange   string
-	Queue      string
-	RoutingKey string
+	AutoAck     bool
+	Concurrency int
+	Durable     bool
+	Exchange    string
+	Queue       string
+	RoutingKey  string
 }
 
 func StartSubscribers() {
@@ -50,14 +51,14 @@ func StartSubscribers() {
 }
 
 // Adds a subscriber to the subscribers pool
-func RegisterSubscriber(s Subscriber, handler func(s string)) {
+func RegisterSubscriber(s Subscriber, handler func(b []byte) bool) {
 	if subscribers == nil {
 		subscribers = make(map[string]Subscriber)
-		handlers = make(map[string]func(s string))
+		handlers = make(map[string]func(b []byte) bool)
 	}
 
 	if handlers == nil {
-		handlers = make(map[string]func(s string))
+		handlers = make(map[string]func(b []byte) bool)
 	}
 
 	subscribers[s.RoutingKey] = s
