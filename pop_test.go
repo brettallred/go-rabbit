@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPublish(t *testing.T) {
+func TestPop(t *testing.T) {
 	assert := assert.New(t)
 
 	message := "Test Message"

@@ -37,7 +37,6 @@ var subscriber = rabbit.Subscriber{
 
 func TestMain(m *testing.M) {
 	os.Setenv("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
-	m.Run()
 	os.Exit(m.Run())
 }
 
