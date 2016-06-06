@@ -15,7 +15,7 @@ type TestEvent struct {
 	Email string `json: Email`
 }
 
-func SampleEventsCreatedHandler(payload []byte) bool {
+func sampleTestEventCreatedHandler(payload []byte) bool {
 	event := TestEvent{}
 	json.Unmarshal(payload, &event)
 	log.Printf("%s", event)
@@ -40,8 +40,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestRegisterSubscriber(t *testing.T) {
-	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
+func TestRegister(t *testing.T) {
+	rabbit.Register(subscriber, sampleTestEventCreatedHandler)
 
 	assert := assert.New(t)
 	assert.Equal(1, len(rabbit.Subscribers()), "Expected 1 Subscriber")
@@ -49,6 +49,7 @@ func TestRegisterSubscriber(t *testing.T) {
 }
 
 func TestStartingSubscribers(t *testing.T) {
-	//rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
-	//rabbit.StartSubscribers()
+	t.Skip("Test Requires you to hit Ctrl-C to Stop")
+	rabbit.Register(subscriber, sampleTestEventCreatedHandler)
+	rabbit.StartSubscribers()
 }

@@ -52,7 +52,7 @@ func StartSubscribers() {
 }
 
 // Adds a subscriber to the subscribers pool
-func RegisterSubscriber(s Subscriber, handler func(b []byte) bool) {
+func Register(s Subscriber, handler func(b []byte) bool) {
 	if subscribers == nil {
 		subscribers = make(map[string]Subscriber)
 		handlers = make(map[string]func(b []byte) bool)

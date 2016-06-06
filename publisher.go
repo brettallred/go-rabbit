@@ -18,6 +18,10 @@ func InitPublisher() {
 }
 
 func Publish(message string, subscriber *Subscriber) {
+	PublishBytes([]byte(message), subscriber)
+}
+
+func PublishBytes(message []byte, subscriber *Subscriber) {
 	InitPublisher()
 
 	createExchange(publishingChannel, subscriber)
@@ -29,6 +33,6 @@ func Publish(message string, subscriber *Subscriber) {
 		false, // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
-			Body:        []byte(message),
+			Body:        message,
 		})
 }
