@@ -3,7 +3,11 @@ package rabbit
 import (
 	"fmt"
 	"log"
+
+	"github.com/streadway/amqp"
 )
+
+var connection *amqp.Connection
 
 func Handlers() map[string]func(b []byte) bool {
 	return handlers

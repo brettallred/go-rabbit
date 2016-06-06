@@ -19,9 +19,10 @@ type Subscriber struct {
 }
 
 func StartSubscribers() {
-	// create a Connection, Ensure they close
-	connection := connect()
-	defer connection.Close()
+	if connection == nil {
+		connection = connect()
+		defer connection.Close()
+	}
 
 	for _, subscriber := range subscribers {
 		log.Printf(`Starting subscriber

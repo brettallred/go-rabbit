@@ -25,20 +25,21 @@ func SampleEventsCreatedHandler(payload []byte) bool {
    TESTS
 */
 
+var subscriber = rabbit.Subscriber{
+	AutoAck:     false,
+	Concurrency: 5,
+	Durable:     true,
+	Exchange:    "events",
+	Queue:       "test.sample.event.created",
+	RoutingKey:  "sample.test_event.created",
+}
+
 func TestMain(m *testing.M) {
 	os.Setenv("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
 	os.Exit(m.Run())
 }
 
 func TestRegisterSubscriber(t *testing.T) {
-	subscriber := rabbit.Subscriber{
-		AutoAck:     false,
-		Concurrency: 5,
-		Durable:     true,
-		Exchange:    "events",
-		Queue:       "test.sample.event.created",
-		RoutingKey:  "sample.test_event.created",
-	}
 	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
 
 	if len(rabbit.Subscribers()) != 1 {
@@ -51,16 +52,6 @@ func TestRegisterSubscriber(t *testing.T) {
 }
 
 func TestStartingSubscribers(t *testing.T) {
-
-	subscriber := rabbit.Subscriber{
-		AutoAck:     false,
-		Concurrency: 5,
-		Durable:     true,
-		Exchange:    "events",
-		Queue:       "test.sample.event.created",
-		RoutingKey:  "sample.event.created",
-	}
-
-	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
-	rabbit.StartSubscribers()
+	//rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
+	//rabbit.StartSubscribers()
 }
