@@ -7,18 +7,22 @@ RabbitMQ Topic Subscriber for Go.
 
 Dowload rabbit using go get
 
-``` go get github.com/brettallred/rabbit ```
+```sh
+go get github.com/brettallred/rabbit 
+```
 
 Import rabbit into your package
 
-``` import github.com/brettallred/rabbit ```
+```go 
+import github.com/brettallred/rabbit 
+```
 
 
 ## Getting Started
 
 rabbit for Go consists of Subscribers and Handlers.  First you need to create a Subscriber
 
-```
+```go
 var subscriber = rabbit.Subscriber{
 	AutoAck:     false, 
 	Concurrency: 5,
@@ -31,7 +35,7 @@ var subscriber = rabbit.Subscriber{
 
 Next, you need to create a Handler that will handle the messages your subscriber receives
 
-```
+```go
 func sampleTestEventCreatedHandler(payload []byte) bool {
 	log.Printf("%s", payload)
 	return true
@@ -40,28 +44,28 @@ func sampleTestEventCreatedHandler(payload []byte) bool {
 
 Now, register your Subscriber and Handler with rabbit
 
-```
+```go
 rabbit.Register(subscriber, sampleTestEventCreatedHandler)
 ```
 
 Finally, fire up the subscribers
 
-```
+```go
 rabbit.StartSubscribers()
 ```
 
 
 ## Publishing
 
-rabbit includes a simple Publisher.  Just send it
+rabbit includes a simple Publisher
 
-```
+```go
 rabbit.Publish("My Message", subscriber)
 ```
 
-or, if you are publishing something that isn't  a string
+or, if you are publishing something that isn't a string
 
-```
+```go
 rabbit.PublishBytes([]byte("My Message"), subscriber)
 ```
 
