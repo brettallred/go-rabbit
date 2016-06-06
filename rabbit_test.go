@@ -1,26 +1,53 @@
 package rabbit_test
 
-import(
-  "testing"
-  "github.com/brettallred/rabbit"
+import (
+	"github.com/brettallred/rabbit"
+	"os"
+	"testing"
 )
 
-type SampleSubscriber struct {
+func SampleEventsCreatedHandler(payload string) {
+
 }
 
-func (s *SampleSubscriber) RoutingKey() string {
-  return "";
-}
+/*
+   TESTS
+*/
 
-func (s *SampleSubscriber) Exchange() string {
-  return "";
+func TestMain(m *testing.M) {
+	os.Setenv("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
+	os.Exit(m.Run())
 }
 
 func TestRegisterSubscriber(t *testing.T) {
-  s := new(SampleSubscriber);
-  rabbit.RegisterSubscriber(s);
+	subscriber := rabbit.Subscriber{
+		Queue:      "test.sample.event.created",
+		RoutingKey: "sample.event.created",
+		Exchange:   "events",
+		AutoAck:    false,
+		Durable:    true,
+	}
+	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
 
-  if len(rabbit.Subscribers()) != 1 {
-    t.Error("Expected 1 Subscriber");
-  }
+	if len(rabbit.Subscribers()) != 1 {
+		t.Error("Expected 1 Subscriber")
+	}
+
+	if len(rabbit.Handlers()) != 1 {
+		t.Error("Expected 1 Handler")
+	}
+}
+
+func TestStartingSubscribers(t *testing.T) {
+
+	subscriber := rabbit.Subscriber{
+		Queue:      "test.sample.event.created",
+		RoutingKey: "sample.event.created",
+		Exchange:   "events",
+		AutoAck:    false,
+		Durable:    true,
+	}
+
+	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
+	rabbit.StartSubscribers()
 }

@@ -1,21 +1,17 @@
 package rabbit
 
-import(
-  //"reflect"
+import (
+	"fmt"
+	"log"
 )
 
-var subscribers []RabbitSubscriber;
-
-type RabbitSubscriber interface {
-  Exchange() string
-  RoutingKey() string
+func Handlers() map[string]func(s string) {
+	return handlers
 }
 
-// Adds a subscriber to the subscribers pool
-func RegisterSubscriber(subscriber RabbitSubscriber) {
-  subscribers = append(subscribers, subscriber);
-}
-
-func Subscribers() []RabbitSubscriber {
-  return subscribers;
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
+		panic(fmt.Sprintf("%s: %s", msg, err))
+	}
 }
