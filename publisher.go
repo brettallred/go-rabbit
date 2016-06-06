@@ -4,18 +4,22 @@ import (
 	"github.com/streadway/amqp"
 )
 
+var publishingConnection *amqp.Connection
 var publishingChannel *amqp.Channel
 
 func InitPublisher() {
-	if connection == nil {
-		connection = connect()
+	if publishingConnection == nil {
+		publishingConnection = connect()
 	}
 
-	publishingChannel = createChannel(connection)
+	if publishingChannel == nil {
+		publishingChannel = createChannel(publishingConnection)
+	}
 }
 
 func Publish(message string, subscriber *Subscriber) {
 	InitPublisher()
+
 	createExchange(publishingChannel, subscriber)
 
 	publishingChannel.Publish(

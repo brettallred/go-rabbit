@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/brettallred/rabbit"
+	"github.com/stretchr/testify/assert"
 )
 
 type TestEvent struct {
@@ -36,19 +37,16 @@ var subscriber = rabbit.Subscriber{
 
 func TestMain(m *testing.M) {
 	os.Setenv("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
+	m.Run()
 	os.Exit(m.Run())
 }
 
 func TestRegisterSubscriber(t *testing.T) {
 	rabbit.RegisterSubscriber(subscriber, SampleEventsCreatedHandler)
 
-	if len(rabbit.Subscribers()) != 1 {
-		t.Error("Expected 1 Subscriber")
-	}
-
-	if len(rabbit.Handlers()) != 1 {
-		t.Error("Expected 1 Handler")
-	}
+	assert := assert.New(t)
+	assert.Equal(1, len(rabbit.Subscribers()), "Expected 1 Subscriber")
+	assert.Equal(1, len(rabbit.Handlers()), "Expected 1 Handler")
 }
 
 func TestStartingSubscribers(t *testing.T) {
