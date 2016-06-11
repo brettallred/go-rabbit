@@ -25,6 +25,8 @@ func PublishBytes(message []byte, subscriber *Subscriber) {
 	InitPublisher()
 
 	createExchange(publishingChannel, subscriber)
+	createQueue(publishingChannel, subscriber)
+	bindQueue(publishingChannel, subscriber)
 
 	publishingChannel.Publish(
 		subscriber.Exchange,   // exchange

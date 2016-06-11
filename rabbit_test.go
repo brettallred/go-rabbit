@@ -32,7 +32,7 @@ var subscriber = rabbit.Subscriber{
 	Durable:     true,
 	Exchange:    "events",
 	Queue:       "test.sample.event.created",
-	RoutingKey:  "sample.test_event.created",
+	RoutingKey:  "sample.event.created",
 }
 
 func TestMain(m *testing.M) {
