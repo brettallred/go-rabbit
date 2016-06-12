@@ -6,7 +6,7 @@ import (
 )
 
 func connect() *amqp.Connection {
-	connection, err := amqp.Dial(os.Getenv("RABBITMQ_URI"))
+	connection, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	return connection
 }

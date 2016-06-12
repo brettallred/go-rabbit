@@ -20,6 +20,9 @@ func InitPop() {
 func Pop(subscriber *Subscriber) string {
 	InitPop()
 
+	createQueue(popChannel, subscriber)
+	bindQueue(popChannel, subscriber)
+
 	message, _, err := popChannel.Get(
 		subscriber.Queue, // queue
 		true,             // auto ack
