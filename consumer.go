@@ -16,9 +16,9 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
 		false,              // no wait
 		nil,                // args
 	)
-	failOnError(err, "Failed to declare an exchange")
+	logError(err, "Failed while trying to consume messages from channel")
 
-	handler := handlers[subscriber.RoutingKey]
+	handler := Handlers[subscriber.RoutingKey]
 
 	for i := 0; i < subscriber.Concurrency; i++ {
 		go func(i int) {

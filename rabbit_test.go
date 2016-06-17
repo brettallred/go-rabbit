@@ -11,8 +11,8 @@ import (
 )
 
 type TestEvent struct {
-	Name  string `json: Name`
-	Email string `json: Email`
+	Name  string `json:"Name"`
+	Email string `json:"Email"`
 }
 
 func sampleTestEventCreatedHandler(payload []byte) bool {
@@ -49,7 +49,6 @@ func TestRegister(t *testing.T) {
 }
 
 func TestStartingSubscribers(t *testing.T) {
-	t.Skip("Test Requires you to hit Ctrl-C to Stop")
 	rabbit.Register(subscriber, sampleTestEventCreatedHandler)
 	rabbit.StartSubscribers()
 }

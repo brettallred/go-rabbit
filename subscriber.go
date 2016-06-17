@@ -5,10 +5,13 @@ import (
 )
 
 var (
-	subscribers map[string]Subscriber
-	handlers    map[string]func(b []byte) bool
+	// Subscribers is a map of all of the registered Subscribers
+	Subscribers map[string]Subscriber
+	// Handlers is a map of all of the registered Subscriber Handlers
+	Handlers map[string]func(b []byte) bool
 )
 
+// Subscriber contains all of the necessary data for Publishing and Subscriber to RabbitMQ Topics
 type Subscriber struct {
 	AutoAck     bool
 	Concurrency int
@@ -18,13 +21,15 @@ type Subscriber struct {
 	RoutingKey  string
 }
 
+// StartSubscribers spins up all of the registered Subscribers and consumes messages on their
+// respective queues.
 func StartSubscribers() {
 	if connection == nil {
 		connection = connect()
 		defer connection.Close()
 	}
 
-	for _, subscriber := range subscribers {
+	for _, subscriber := range Subscribers {
 		log.Printf(`Starting subscriber
 		AutoAck:    %t
 		Durable:    %t 
@@ -51,21 +56,17 @@ func StartSubscribers() {
 	<-forever
 }
 
-// Adds a subscriber to the subscribers pool
+// Register adds a subscriber and handler to the subscribers pool
 func Register(s Subscriber, handler func(b []byte) bool) {
-	if subscribers == nil {
-		subscribers = make(map[string]Subscriber)
-		handlers = make(map[string]func(b []byte) bool)
+	if Subscribers == nil {
+		Subscribers = make(map[string]Subscriber)
+		Handlers = make(map[string]func(b []byte) bool)
 	}
 
-	if handlers == nil {
-		handlers = make(map[string]func(b []byte) bool)
+	if Handlers == nil {
+		Handlers = make(map[string]func(b []byte) bool)
 	}
 
-	subscribers[s.RoutingKey] = s
-	handlers[s.RoutingKey] = handler
-}
-
-func Subscribers() map[string]Subscriber {
-	return subscribers
+	Subscribers[s.RoutingKey] = s
+	Handlers[s.RoutingKey] = handler
 }
