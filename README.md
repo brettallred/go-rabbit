@@ -24,7 +24,6 @@ rabbit for Go consists of Subscribers and Handlers.  First you need to create a 
 
 ```go
 var subscriber = rabbit.Subscriber{
-	AutoAck:     false, 
 	Concurrency: 5,
 	Durable:     true,
 	Exchange:    "events",

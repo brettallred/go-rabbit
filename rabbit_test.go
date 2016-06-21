@@ -27,7 +27,6 @@ func sampleTestEventCreatedHandler(payload []byte) bool {
 */
 
 var subscriber = rabbit.Subscriber{
-	AutoAck:     false,
 	Concurrency: 5,
 	Durable:     true,
 	Exchange:    "events",

@@ -1,20 +1,18 @@
 package rabbit
 
 import (
-	"log"
-
 	"github.com/streadway/amqp"
 )
 
 func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
 	messages, err := channel.Consume(
-		subscriber.Queue,   // queue
-		"",                 // consumer
-		subscriber.AutoAck, // auto ack
-		false,              // exclusive
-		false,              // no local
-		false,              // no wait
-		nil,                // args
+		subscriber.Queue, // queue
+		"",               // consumer
+		false,            // auto ack
+		false,            // exclusive
+		false,            // no local
+		false,            // no wait
+		nil,              // args
 	)
 	logError(err, "Failed while trying to consume messages from channel")
 

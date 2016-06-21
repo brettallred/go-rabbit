@@ -13,7 +13,6 @@ var (
 
 // Subscriber contains all of the necessary data for Publishing and Subscriber to RabbitMQ Topics
 type Subscriber struct {
-	AutoAck     bool
 	Concurrency int
 	Durable     bool
 	Exchange    string
@@ -31,13 +30,11 @@ func StartSubscribers() {
 
 	for _, subscriber := range Subscribers {
 		log.Printf(`Starting subscriber
-		AutoAck:    %t
 		Durable:    %t 
 		Exchange:   %s 
 		Queue:      %s 
 		RoutingKey: %s 
 		`,
-			subscriber.AutoAck,
 			subscriber.Durable,
 			subscriber.Exchange,
 			subscriber.Queue,
