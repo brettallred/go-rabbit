@@ -22,9 +22,7 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
 
 	for i := 0; i < subscriber.Concurrency; i++ {
 		go func(i int) {
-			log.Printf("Consumer #%d started for %s", i, subscriber.Queue)
 			for message := range messages {
-				log.Printf("Consumer # %d for %s received %s", i, subscriber.Queue, message.Body)
 				ack := handler(message.Body)
 				message.Ack(ack)
 			}
