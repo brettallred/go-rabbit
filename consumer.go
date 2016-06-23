@@ -5,6 +5,7 @@ import (
 )
 
 func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
+	channel.Qos(10, 0, false)
 	messages, err := channel.Consume(
 		subscriber.Queue, // queue
 		"",               // consumer
