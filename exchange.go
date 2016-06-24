@@ -14,6 +14,9 @@ func createExchange(channel *amqp.Channel, subscriber *Subscriber) error {
 		false,   // no-wait
 		nil,     // arguments
 	)
-	failOnError(err, "Failed to declare an exchange")
+	if err != nil {
+		logError(err, "Failed to declare an exchange")
+		return nil
+	}
 	return err
 }

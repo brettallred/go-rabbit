@@ -31,10 +31,10 @@ func StartSubscribers() {
 
 	for _, subscriber := range Subscribers {
 		log.Printf(`Starting subscriber
-		Durable:    %t 
-		Exchange:   %s 
-		Queue:      %s 
-		RoutingKey: %s 
+		Durable:    %t
+		Exchange:   %s
+		Queue:      %s
+		RoutingKey: %s
 		`,
 			subscriber.Durable,
 			subscriber.Exchange,
@@ -48,10 +48,6 @@ func StartSubscribers() {
 		bindQueue(channel, &subscriber)
 		createConsumer(channel, &subscriber)
 	}
-
-	forever := make(chan bool)
-	log.Printf(" [*] Waiting for logs. To exit press CTRL+C")
-	<-forever
 }
 
 // Register adds a subscriber and handler to the subscribers pool

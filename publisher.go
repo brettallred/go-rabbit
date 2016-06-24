@@ -7,7 +7,7 @@ import (
 var publishingConnection *amqp.Connection
 var publishingChannel *amqp.Channel
 
-// InitPublisher initialized the RabbitMQ Connection and Channel for Publishing messages.
+// InitPublisher initializes the RabbitMQ Connection and Channel for Publishing messages.
 func InitPublisher() {
 	if publishingConnection == nil {
 		publishingConnection = connect()
@@ -16,6 +16,24 @@ func InitPublisher() {
 	if publishingChannel == nil {
 		publishingChannel = createChannel(publishingConnection)
 	}
+}
+
+// InitPublisher reinitializes the RabbitMQ Connection and Channel for Publishing messages.
+func ReInitPublisher() {
+	publishingConnection = connect()
+	publishingChannel = createChannel(publishingConnection)
+}
+
+// ConfirmPublish enables reliable mode for the publisher.
+func ConfirmPublish(wait bool) error {
+	InitPublisher()
+	return publishingChannel.Confirm(wait)
+}
+
+// NotifyPublish registers a listener for reliable publishing.
+func NotifyPublish(c chan amqp.Confirmation) chan amqp.Confirmation {
+	InitPublisher()
+	return publishingChannel.NotifyPublish(c)
 }
 
 // Publish pushes items on to a RabbitMQ Queue.
@@ -33,7 +51,8 @@ func PublishBytes(message []byte, subscriber *Subscriber) {
 		false, // mandatory
 		false, // immediate
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        message,
+			ContentType:  "application/json",
+			Body:         message,
+			DeliveryMode: amqp.Transient,
 		})
 }
