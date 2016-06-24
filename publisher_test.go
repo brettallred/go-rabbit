@@ -14,12 +14,15 @@ func TestPublish(t *testing.T) {
 	message := "Test Message"
 	rabbit.Publish(message, &subscriber)
 
-	assert.Equal(message, rabbit.Pop(&subscriber))
+	var result string
+	rabbit.Pop(&subscriber, &result)
+	assert.Equal(message, result)
 }
 
 func TestConfirm(t *testing.T) {
 	rabbit.ReInitPublisher()
-	go rabbit.Pop(&subscriber)
+	var result string
+	go rabbit.Pop(&subscriber, &result)
 	confirms := rabbit.NotifyPublish(make(chan amqp.Confirmation, 1))
 	rabbit.ConfirmPublish(false)
 	rabbit.Publish("something", &subscriber)
