@@ -37,15 +37,15 @@ func NotifyPublish(c chan amqp.Confirmation) chan amqp.Confirmation {
 }
 
 // Publish pushes items on to a RabbitMQ Queue.
-func Publish(message string, subscriber *Subscriber) {
-	PublishBytes([]byte(message), subscriber)
+func Publish(message string, subscriber *Subscriber) error {
+	return PublishBytes([]byte(message), subscriber)
 }
 
 // PublishBytes is the same as Publish but accepts a []byte instead of a string
-func PublishBytes(message []byte, subscriber *Subscriber) {
+func PublishBytes(message []byte, subscriber *Subscriber) error {
 	InitPublisher()
 
-	publishingChannel.Publish(
+	return publishingChannel.Publish(
 		subscriber.Exchange,   // exchange
 		subscriber.RoutingKey, // routing key
 		false, // mandatory
