@@ -43,8 +43,8 @@ func TestRegister(t *testing.T) {
 	rabbit.Register(subscriber, sampleTestEventCreatedHandler)
 
 	assert := assert.New(t)
-	assert.Equal(1, len(rabbit.Subscribers()), "Expected 1 Subscriber")
-	assert.Equal(1, len(rabbit.Handlers()), "Expected 1 Handler")
+	assert.Equal(1, len(rabbit.Subscribers), "Expected 1 Subscriber")
+	assert.Equal(1, len(rabbit.Handlers), "Expected 1 Handler")
 }
 
 func TestStartingSubscribers(t *testing.T) {

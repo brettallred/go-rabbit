@@ -4,7 +4,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func createQueue(channel *amqp.Channel, subscriber *Subscriber) amqp.Queue {
+func createQueue(channel *amqp.Channel, subscriber *Subscriber) (amqp.Queue, error) {
 	queue, err := channel.QueueDeclare(
 		subscriber.Queue,   // name
 		subscriber.Durable, // durable
@@ -13,11 +13,13 @@ func createQueue(channel *amqp.Channel, subscriber *Subscriber) amqp.Queue {
 		false,              // no-wait
 		nil,                // arguments
 	)
-	failOnError(err, "Failed to declare an queue")
-	return queue
+	if err != nil {
+		logError(err, "Failed to declare an queue")
+	}
+	return queue, err
 }
 
-func bindQueue(channel *amqp.Channel, subscriber *Subscriber) {
+func bindQueue(channel *amqp.Channel, subscriber *Subscriber) error {
 	err := channel.QueueBind(
 		subscriber.Queue,      // queue name
 		subscriber.RoutingKey, // routing key
@@ -25,5 +27,9 @@ func bindQueue(channel *amqp.Channel, subscriber *Subscriber) {
 		false,
 		nil)
 
-	failOnError(err, "Failed to declare an queue")
+	if err != nil {
+		logError(err, "Failed to declare an queue")
+		return err
+	}
+	return nil
 }
