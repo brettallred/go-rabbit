@@ -12,7 +12,8 @@ func TestPublish(t *testing.T) {
 	assert := assert.New(t)
 
 	message := "Test Message"
-	rabbit.Publish(message, &subscriber)
+	publisher := rabbit.NewPublisher()
+	publisher.Publish(message, &subscriber)
 
 	var result string
 	rabbit.Pop(&subscriber, &result)
@@ -20,11 +21,11 @@ func TestPublish(t *testing.T) {
 }
 
 func TestConfirm(t *testing.T) {
-	rabbit.ReInitPublisher()
+	publisher := rabbit.NewPublisher()
 	var result string
-	go rabbit.Pop(&subscriber, &result)
-	confirms := rabbit.NotifyPublish(make(chan amqp.Confirmation, 1))
-	rabbit.ConfirmPublish(false)
-	rabbit.Publish("something", &subscriber)
+	confirms := publisher.NotifyPublish(make(chan amqp.Confirmation, 1))
+	publisher.Confirm(false)
+	publisher.Publish("something", &subscriber)
+	rabbit.Pop(&subscriber, &result)
 	<-confirms
 }

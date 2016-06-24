@@ -8,13 +8,13 @@ RabbitMQ Topic Subscriber for Go.
 Dowload rabbit using go get
 
 ```sh
-go get github.com/brettallred/rabbit 
+go get github.com/brettallred/rabbit
 ```
 
 Import rabbit into your package
 
-```go 
-import github.com/brettallred/rabbit 
+```go
+import github.com/brettallred/rabbit
 ```
 
 
@@ -59,13 +59,14 @@ rabbit.StartSubscribers()
 rabbit includes a simple Publisher
 
 ```go
-rabbit.Publish("My Message", subscriber)
+publisher := rabbit.NewPublisher()
+publisher.Publish("My Message", subscriber)
 ```
 
 or, if you are publishing something that isn't a string
 
 ```go
-rabbit.PublishBytes([]byte("My Message"), subscriber)
+publisher.PublishBytes([]byte("My Message"), subscriber)
 ```
 
 ##Contributing

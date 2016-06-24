@@ -1,6 +1,7 @@
 package rabbit
 
 import (
+	"errors"
 	"log"
 )
 
@@ -23,10 +24,14 @@ type Subscriber struct {
 
 // StartSubscribers spins up all of the registered Subscribers and consumes messages on their
 // respective queues.
-func StartSubscribers() {
+func StartSubscribers() error {
 	if connection == nil {
-		connection = connect()
-		defer connection.Close()
+		connect()
+	}
+	if connection == nil {
+		errorMessage := "Can't start subscribers: no connection"
+		log.Printf(errorMessage)
+		return errors.New(errorMessage)
 	}
 
 	for _, subscriber := range Subscribers {
@@ -43,11 +48,24 @@ func StartSubscribers() {
 		)
 
 		channel := createChannel(connection)
-		createExchange(channel, &subscriber)
-		createQueue(channel, &subscriber)
-		bindQueue(channel, &subscriber)
-		createConsumer(channel, &subscriber)
+		if err := createExchange(channel, &subscriber); err != nil {
+			log.Printf("Failed to start subscriber: %v", err.Error())
+			return err
+		}
+		if _, err := createQueue(channel, &subscriber); err != nil {
+			log.Printf("Failed to start subscriber: %v", err.Error())
+			return err
+		}
+		if err := bindQueue(channel, &subscriber); err != nil {
+			log.Printf("Failed to start subscriber: %v", err.Error())
+			return err
+		}
+		if err := createConsumer(channel, &subscriber); err != nil {
+			log.Printf("Failed to start subscriber: %v", err.Error())
+			return err
+		}
 	}
+	return nil
 }
 
 // Register adds a subscriber and handler to the subscribers pool
@@ -63,4 +81,10 @@ func Register(s Subscriber, handler func(b []byte) bool) {
 
 	Subscribers[s.RoutingKey] = s
 	Handlers[s.RoutingKey] = handler
+}
+
+func CloseSubscribers() {
+	if connection != nil {
+		connection.Close()
+	}
 }

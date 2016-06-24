@@ -4,7 +4,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
+func createConsumer(channel *amqp.Channel, subscriber *Subscriber) error {
 	channel.Qos(subscriber.PrefetchCount, 0, false)
 
 	messages, err := channel.Consume(
@@ -17,6 +17,9 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
 		nil,              // args
 	)
 	logError(err, "Failed while trying to consume messages from channel")
+	if err != nil {
+		return err
+	}
 
 	handler := Handlers[subscriber.RoutingKey]
 
@@ -28,4 +31,6 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) {
 			}
 		}(i)
 	}
+
+	return nil
 }
