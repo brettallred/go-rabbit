@@ -1,7 +1,9 @@
 package rabbit
 
 import (
+	"errors"
 	"github.com/streadway/amqp"
+	"log"
 )
 
 var popConnection *amqp.Connection
@@ -21,8 +23,14 @@ func InitPop() {
 // Pop returns a single item from a RabbitMQ queue. It uses the Subscriber to know which
 // queue to pop the item off.  This is currently a helper function for the tests so you can
 // pop a message off the queue and test it.
-func Pop(subscriber *Subscriber) string {
+func Pop(subscriber *Subscriber, result *string) error {
 	InitPop()
+
+	if popChannel == nil {
+		errorMessage := "Can't consume message: no channel"
+		log.Printf(errorMessage)
+		return errors.New(errorMessage)
+	}
 
 	createQueue(popChannel, subscriber)
 	bindQueue(popChannel, subscriber)
@@ -33,5 +41,8 @@ func Pop(subscriber *Subscriber) string {
 	)
 	logError(err, "Failed while consuming message")
 
-	return string(message.Body)
+	if err == nil {
+		*result = string(message.Body)
+	}
+	return err
 }

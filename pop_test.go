@@ -11,7 +11,9 @@ func TestPop(t *testing.T) {
 	assert := assert.New(t)
 
 	message := "Test Message"
-	rabbit.Publish(message, &subscriber)
+	rabbit.NewPublisher().Publish(message, &subscriber)
 
-	assert.Equal(message, rabbit.Pop(&subscriber))
+	var result string
+	rabbit.Pop(&subscriber, &result)
+	assert.Equal(message, result)
 }
