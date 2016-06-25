@@ -48,6 +48,9 @@ func StartSubscribers() error {
 		)
 
 		channel := createChannel(connection)
+		if channel == nil {
+			return errors.New("Failed to start subscriber: can't create a channel")
+		}
 		if err := createExchange(channel, &subscriber); err != nil {
 			log.Printf("Failed to start subscriber: %v", err.Error())
 			return err
@@ -85,6 +88,25 @@ func Register(s Subscriber, handler func(b []byte) bool) {
 
 func CloseSubscribers() {
 	if connection != nil {
-		connection.Close()
+		c := connection
+		connection = nil
+		c.Close()
 	}
+}
+
+func DeleteQueue(s Subscriber) error {
+	if connection == nil {
+		connect()
+	}
+	if connection == nil {
+		errorMessage := "Can't delete queue: no connection"
+		log.Printf(errorMessage)
+		return errors.New(errorMessage)
+	}
+
+	channel := createChannel(connection)
+	if channel == nil {
+		return errors.New("Can't delete a queue: can't create a channel")
+	}
+	return deleteQueue(channel, &s)
 }

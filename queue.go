@@ -40,3 +40,8 @@ func bindQueue(channel *amqp.Channel, subscriber *Subscriber) error {
 	}
 	return nil
 }
+
+func deleteQueue(channel *amqp.Channel, subscriber *Subscriber) error {
+	_, err := channel.QueueDelete(subscriber.Queue, false, false, false)
+	return err
+}
