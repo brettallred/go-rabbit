@@ -3,13 +3,16 @@ package rabbit
 import (
 	"errors"
 	"log"
+	"sync"
 )
 
 var (
 	// Subscribers is a map of all of the registered Subscribers
 	Subscribers map[string]Subscriber
 	// Handlers is a map of all of the registered Subscriber Handlers
-	Handlers map[string]func(b []byte) bool
+	Handlers           map[string]func(b []byte) bool
+	subscribersStarted bool = false
+	lock               sync.RWMutex
 )
 
 // Subscriber contains all of the necessary data for Publishing and Subscriber to RabbitMQ Topics
@@ -25,10 +28,8 @@ type Subscriber struct {
 // StartSubscribers spins up all of the registered Subscribers and consumes messages on their
 // respective queues.
 func StartSubscribers() error {
-	if connection == nil {
-		connect()
-	}
-	if connection == nil {
+	conn := connection()
+	if conn == nil {
 		errorMessage := "Can't start subscribers: no connection"
 		log.Printf(errorMessage)
 		return errors.New(errorMessage)
@@ -47,7 +48,7 @@ func StartSubscribers() error {
 			subscriber.RoutingKey,
 		)
 
-		channel := createChannel(connection)
+		channel := createChannel(conn)
 		if channel == nil {
 			return errors.New("Failed to start subscriber: can't create a channel")
 		}
@@ -87,24 +88,25 @@ func Register(s Subscriber, handler func(b []byte) bool) {
 }
 
 func CloseSubscribers() {
-	if connection != nil {
-		c := connection
-		connection = nil
-		c.Close()
+	lock.Lock()
+	defer lock.Unlock()
+	if _connection != nil {
+		c := _connection
+		_connection = nil
+		go c.Close()
+		subscribersStarted = false
 	}
 }
 
 func DeleteQueue(s Subscriber) error {
-	if connection == nil {
-		connect()
-	}
-	if connection == nil {
+	conn := connection()
+	if conn == nil {
 		errorMessage := "Can't delete queue: no connection"
 		log.Printf(errorMessage)
 		return errors.New(errorMessage)
 	}
 
-	channel := createChannel(connection)
+	channel := createChannel(conn)
 	if channel == nil {
 		return errors.New("Can't delete a queue: can't create a channel")
 	}
