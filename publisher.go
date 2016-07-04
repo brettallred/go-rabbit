@@ -23,7 +23,7 @@ func NewPublisher() *Publisher {
 	return &Publisher{}
 }
 
-func (p *Publisher) connection_and_channel() (*amqp.Connection, *amqp.Channel, error) {
+func (p *Publisher) channel() (*amqp.Channel, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p._connection == nil {
@@ -31,7 +31,7 @@ func (p *Publisher) connection_and_channel() (*amqp.Connection, *amqp.Channel, e
 		if err != nil {
 			p._connection = nil
 			p._channel = nil
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	if p._channel == nil {
@@ -42,7 +42,7 @@ func (p *Publisher) connection_and_channel() (*amqp.Connection, *amqp.Channel, e
 			if c != nil {
 				go c.Close()
 			}
-			return nil, nil, errors.New("Can't create channel")
+			return nil, errors.New("Can't create channel")
 		}
 		for i, _ := range p._notifyPublish {
 			p._channel.NotifyPublish(p._notifyPublish[i])
@@ -54,12 +54,12 @@ func (p *Publisher) connection_and_channel() (*amqp.Connection, *amqp.Channel, e
 				if c != nil {
 					go c.Close()
 				}
-				return nil, nil, err
+				return nil, err
 			}
 		}
 	}
 
-	return p._connection, p._channel, nil
+	return p._channel, nil
 }
 
 func (p *Publisher) connect() error {
@@ -107,7 +107,7 @@ func (p *Publisher) connect() error {
 
 // Confirm enables reliable mode for the publisher.
 func (p *Publisher) Confirm(wait bool) error {
-	_, channel, err := p.connection_and_channel()
+	channel, err := p.channel()
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (p *Publisher) Confirm(wait bool) error {
 
 // NotifyPublish registers a listener for reliable publishing.
 func (p *Publisher) NotifyPublish(c chan amqp.Confirmation) chan amqp.Confirmation {
-	_, channel, _ := p.connection_and_channel()
+	channel, _ := p.channel()
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p._notifyPublish = append(p._notifyPublish, c)
@@ -141,7 +141,7 @@ func (p *Publisher) Publish(message string, subscriber *Subscriber) error {
 
 // PublishBytes is the same as Publish but accepts a []byte instead of a string
 func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
-	_, channel, err := p.connection_and_channel()
+	channel, err := p.channel()
 	if err != nil {
 		return err
 	}
