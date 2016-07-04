@@ -23,13 +23,13 @@ func InitPop() {
 // Pop returns a single item from a RabbitMQ queue. It uses the Subscriber to know which
 // queue to pop the item off.  This is currently a helper function for the tests so you can
 // pop a message off the queue and test it.
-func Pop(subscriber *Subscriber, result *string) error {
+func Pop(subscriber *Subscriber) (string, error) {
 	InitPop()
 
 	if popChannel == nil {
 		errorMessage := "Can't consume message: no channel"
 		log.Printf(errorMessage)
-		return errors.New(errorMessage)
+		return "", errors.New(errorMessage)
 	}
 
 	createQueue(popChannel, subscriber)
@@ -42,7 +42,7 @@ func Pop(subscriber *Subscriber, result *string) error {
 	logError(err, "Failed while consuming message")
 
 	if err == nil {
-		*result = string(message.Body)
+		return string(message.Body), nil
 	}
-	return err
+	return "", err
 }
