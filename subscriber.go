@@ -42,7 +42,7 @@ func StartSubscribers() error {
 		Exchange:   %s
 		Queue:      %s
 		RoutingKey: %s
-		AutoDelete: %s
+		AutoDelete: %v
 		`,
 			subscriber.Durable,
 			subscriber.Exchange,
