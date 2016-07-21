@@ -3,7 +3,7 @@ package rabbit_test
 import (
 	"testing"
 
-	"github.com/brettallred/rabbit"
+	"github.com/brettallred/rabbit-go"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
