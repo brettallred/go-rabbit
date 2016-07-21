@@ -7,34 +7,58 @@ import (
 	"time"
 )
 
+func connection() *amqp.Connection {
+	lock.Lock()
+	defer lock.Unlock()
+	if _connection == nil {
+		connect()
+		if _connection != nil && subscribersStarted {
+			err := StartSubscribers()
+			if err != nil {
+				c := _connection
+				_connection = nil
+				go c.Close()
+			}
+		}
+	}
+	return _connection
+}
+
 func connect() *amqp.Connection {
 	c, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	if err != nil {
-		connection = nil
+		_connection = nil
 		logError(err, "Failed to connect to RabbitMQ")
 		return nil
 	}
 
-	connection = c
+	_connection = c
 	errorChannel := make(chan *amqp.Error)
 	errorHandler := func() {
 		for {
 			select {
 			case <-errorChannel:
-				if connection != nil {
-					log.Printf("RabbitMQ connection failed, we will redial")
-					connection = nil
+				lock.Lock()
+				defer lock.Unlock()
+				if _connection != nil {
+					go log.Printf("RabbitMQ connection failed, we will redial")
+					c := _connection
+					_connection = nil
+					go c.Close()
 				}
 				return
 			default:
-				if connection == nil {
+				lock.RLock()
+				if _connection == nil {
+					lock.RUnlock()
 					return
 				}
+				lock.RUnlock()
 				time.Sleep(10 * time.Millisecond)
 			}
 		}
 	}
-	connection.NotifyClose(errorChannel)
+	_connection.NotifyClose(errorChannel)
 	go errorHandler()
-	return connection
+	return _connection
 }
