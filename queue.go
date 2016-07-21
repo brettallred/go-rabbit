@@ -13,12 +13,12 @@ func createQueue(channel *amqp.Channel, subscriber *Subscriber) (*amqp.Queue, er
 		return nil, errors.New(errorMessage)
 	}
 	queue, err := channel.QueueDeclare(
-		subscriber.Queue,   // name
-		subscriber.Durable, // durable
-		false,              // delete when usused
-		false,              // exclusive
-		false,              // no-wait
-		nil,                // arguments
+		subscriber.Queue,      // name
+		subscriber.Durable,    // durable
+		subscriber.AutoDelete, // delete when usused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	if err != nil {
 		logError(err, "Failed to declare an queue")

@@ -20,6 +20,7 @@ type Subscriber struct {
 	Queue         string
 	RoutingKey    string
 	PrefetchCount int
+	AutoDelete    bool
 }
 
 // StartSubscribers spins up all of the registered Subscribers and consumes messages on their
@@ -40,11 +41,13 @@ func StartSubscribers() error {
 		Exchange:   %s
 		Queue:      %s
 		RoutingKey: %s
+		AutoDelete: %s
 		`,
 			subscriber.Durable,
 			subscriber.Exchange,
 			subscriber.Queue,
 			subscriber.RoutingKey,
+			subscriber.AutoDelete,
 		)
 
 		channel := createChannel(connection)
