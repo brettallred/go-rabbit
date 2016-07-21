@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-var connection *amqp.Connection = nil
+var _connection *amqp.Connection = nil
 
 func failOnError(err error, msg string) {
 	if err != nil {
