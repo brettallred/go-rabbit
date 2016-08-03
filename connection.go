@@ -12,14 +12,6 @@ func connection() *amqp.Connection {
 	defer lock.Unlock()
 	if _connection == nil {
 		connect()
-		if _connection != nil && subscribersStarted {
-			err := StartSubscribers()
-			if err != nil {
-				c := _connection
-				_connection = nil
-				go c.Close()
-			}
-		}
 	}
 	return _connection
 }
@@ -39,12 +31,23 @@ func connect() *amqp.Connection {
 			select {
 			case <-errorChannel:
 				lock.Lock()
-				defer lock.Unlock()
 				if _connection != nil {
 					go log.Printf("RabbitMQ connection failed, we will redial")
 					c := _connection
 					_connection = nil
 					go c.Close()
+					lock.Unlock()
+					connection()
+					if _connection != nil && subscribersStarted {
+						err := StartSubscribers()
+						if err != nil {
+							c := _connection
+							_connection = nil
+							go c.Close()
+						}
+					}
+				} else {
+					lock.Unlock()
 				}
 				return
 			default:

@@ -8,6 +8,14 @@ import (
 )
 
 func TestPop(t *testing.T) {
+	var subscriber = rabbit.Subscriber{
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events",
+		Queue:       "poptest.popsample.event.created",
+		RoutingKey:  "popsample.event.created",
+	}
+
 	assert := assert.New(t)
 
 	message := "Test Message"
