@@ -36,6 +36,7 @@ func StartSubscribers() error {
 		return errors.New(errorMessage)
 	}
 
+	subscribersStarted = true
 	for _, subscriber := range Subscribers {
 		log.Printf(`Starting subscriber
 		Durable:    %t
