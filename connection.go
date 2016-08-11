@@ -17,11 +17,17 @@ func connection() *amqp.Connection {
 }
 
 func connect() *amqp.Connection {
-	c, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
-	if err != nil {
-		_connection = nil
-		logError(err, "Failed to connect to RabbitMQ")
-		return nil
+	var c *amqp.Connection = nil
+	var err error = nil
+	for {
+		c, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
+		if err != nil {
+			_connection = nil
+			logError(err, "Failed to connect to RabbitMQ, we will redial")
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	_connection = c
