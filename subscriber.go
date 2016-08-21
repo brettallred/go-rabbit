@@ -96,11 +96,13 @@ func Register(s Subscriber, handler func(b []byte) bool) {
 func CloseSubscribers() {
 	lock.Lock()
 	defer lock.Unlock()
+	subscribersStarted = false
+	Subscribers = nil
+	Handlers = nil
 	if _connection != nil {
 		c := _connection
 		_connection = nil
 		go c.Close()
-		subscribersStarted = false
 	}
 }
 

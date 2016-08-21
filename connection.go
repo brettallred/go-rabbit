@@ -10,6 +10,10 @@ import (
 func connection() *amqp.Connection {
 	lock.Lock()
 	defer lock.Unlock()
+	return connectionWithoutLock()
+}
+
+func connectionWithoutLock() *amqp.Connection {
 	if _connection == nil {
 		connect()
 	}
@@ -20,6 +24,7 @@ func connect() *amqp.Connection {
 	var c *amqp.Connection = nil
 	var err error = nil
 	for {
+		log.Printf("RabbitMQ: Dialing to %s", os.Getenv("RABBITMQ_URL"))
 		c, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
 		if err != nil {
 			_connection = nil
@@ -32,8 +37,13 @@ func connect() *amqp.Connection {
 
 	_connection = c
 	errorChannel := make(chan *amqp.Error)
-	errorHandler := func() {
+	errorHandler := func(myConnection *amqp.Connection) {
 		for {
+			time.Sleep(100 * time.Millisecond)
+			if myConnection != _connection {
+				myConnection.Close()
+				return
+			}
 			select {
 			case <-errorChannel:
 				lock.Lock()
@@ -41,20 +51,19 @@ func connect() *amqp.Connection {
 					go log.Printf("RabbitMQ connection failed, we will redial")
 					c := _connection
 					_connection = nil
-					go c.Close()
-					lock.Unlock()
-					connection()
+					defer c.Close()
+					connectionWithoutLock()
 					if _connection != nil && subscribersStarted {
 						err := StartSubscribers()
 						if err != nil {
+							go log.Printf("Erron on subscribing to RabbitMQ: %s", err.Error())
 							c := _connection
 							_connection = nil
-							go c.Close()
+							defer c.Close()
 						}
 					}
-				} else {
-					lock.Unlock()
 				}
+				lock.Unlock()
 				return
 			default:
 				lock.RLock()
@@ -63,11 +72,10 @@ func connect() *amqp.Connection {
 					return
 				}
 				lock.RUnlock()
-				time.Sleep(10 * time.Millisecond)
 			}
 		}
 	}
 	_connection.NotifyClose(errorChannel)
-	go errorHandler()
+	go errorHandler(_connection)
 	return _connection
 }
