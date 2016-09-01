@@ -38,39 +38,41 @@ func StartSubscribers() error {
 
 	subscribersStarted = true
 	for _, subscriber := range Subscribers {
-		log.Printf(`Starting subscriber
-		Durable:    %t
-		Exchange:   %s
-		Queue:      %s
-		RoutingKey: %s
-		AutoDelete: %v
-		`,
-			subscriber.Durable,
-			subscriber.Exchange,
-			subscriber.Queue,
-			subscriber.RoutingKey,
-			subscriber.AutoDelete,
-		)
+		for i := 0; i < subscriber.Concurrency; i++ {
+			log.Printf(`Starting subscriber
+		                Durable:    %t
+		                Exchange:   %s
+		                Queue:      %s
+		                RoutingKey: %s
+		                AutoDelete: %v
+		                `,
+				subscriber.Durable,
+				subscriber.Exchange,
+				subscriber.Queue,
+				subscriber.RoutingKey,
+				subscriber.AutoDelete,
+			)
 
-		channel := createChannel(conn)
-		if channel == nil {
-			return errors.New("Failed to start subscriber: can't create a channel")
-		}
-		if err := createExchange(channel, &subscriber); err != nil {
-			log.Printf("Failed to start subscriber: %v", err.Error())
-			return err
-		}
-		if _, err := createQueue(channel, &subscriber); err != nil {
-			log.Printf("Failed to start subscriber: %v", err.Error())
-			return err
-		}
-		if err := bindQueue(channel, &subscriber); err != nil {
-			log.Printf("Failed to start subscriber: %v", err.Error())
-			return err
-		}
-		if err := createConsumer(channel, &subscriber); err != nil {
-			log.Printf("Failed to start subscriber: %v", err.Error())
-			return err
+			channel := createChannel(conn)
+			if channel == nil {
+				return errors.New("Failed to start subscriber: can't create a channel")
+			}
+			if err := createExchange(channel, &subscriber); err != nil {
+				log.Printf("Failed to start subscriber: %v", err.Error())
+				return err
+			}
+			if _, err := createQueue(channel, &subscriber); err != nil {
+				log.Printf("Failed to start subscriber: %v", err.Error())
+				return err
+			}
+			if err := bindQueue(channel, &subscriber); err != nil {
+				log.Printf("Failed to start subscriber: %v", err.Error())
+				return err
+			}
+			if err := createConsumer(channel, &subscriber); err != nil {
+				log.Printf("Failed to start subscriber: %v", err.Error())
+				return err
+			}
 		}
 	}
 	return nil
@@ -94,11 +96,13 @@ func Register(s Subscriber, handler func(b []byte) bool) {
 func CloseSubscribers() {
 	lock.Lock()
 	defer lock.Unlock()
+	subscribersStarted = false
+	Subscribers = nil
+	Handlers = nil
 	if _connection != nil {
 		c := _connection
 		_connection = nil
 		go c.Close()
-		subscribersStarted = false
 	}
 }
 
