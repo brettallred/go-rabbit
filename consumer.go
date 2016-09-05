@@ -22,15 +22,12 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) error {
 	}
 
 	handler := Handlers[subscriber.RoutingKey]
-
-	for i := 0; i < subscriber.Concurrency; i++ {
-		go func(i int) {
-			for message := range messages {
-				ack := handler(message.Body)
-				message.Ack(ack)
-			}
-		}(i)
-	}
+	go func() {
+		for message := range messages {
+			ack := handler(message.Body)
+			message.Ack(ack)
+		}
+	}()
 
 	return nil
 }
