@@ -44,7 +44,7 @@ func (p *Publisher) channel() (*amqp.Channel, error) {
 			}
 			return nil, errors.New("Can't create channel")
 		}
-		for i, _ := range p._notifyPublish {
+		for i := range p._notifyPublish {
 			p._channel.NotifyPublish(p._notifyPublish[i])
 		}
 		if p._reliableMode {

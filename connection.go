@@ -21,8 +21,8 @@ func connectionWithoutLock() *amqp.Connection {
 }
 
 func connect() *amqp.Connection {
-	var c *amqp.Connection = nil
-	var err error = nil
+	var c *amqp.Connection
+	var err error
 	for {
 		log.Printf("RabbitMQ: Dialing to %s", os.Getenv("RABBITMQ_URL"))
 		c, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
