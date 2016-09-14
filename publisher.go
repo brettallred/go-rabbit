@@ -154,7 +154,7 @@ func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
 		amqp.Publishing{
 			ContentType:  "application/json",
 			Body:         message,
-			DeliveryMode: amqp.Transient,
+			DeliveryMode: amqp.Persistent,
 		})
 }
 
