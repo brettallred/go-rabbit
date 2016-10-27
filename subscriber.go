@@ -11,7 +11,7 @@ var (
 	Subscribers map[string]Subscriber
 	// Handlers is a map of all of the registered Subscriber Handlers
 	Handlers           map[string]func(b []byte) bool
-	subscribersStarted bool = false
+	subscribersStarted = false
 	lock               sync.RWMutex
 )
 
