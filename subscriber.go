@@ -16,6 +16,7 @@ var (
 	Handlers           map[string]func(b []byte) bool
 	subscribersStarted = false
 	lock               sync.RWMutex
+	nonDevEnvironments = []string{"production", "prod", "staging", "stage"}
 )
 
 // Subscriber contains all of the necessary data for Publishing and Subscriber to RabbitMQ Topics
@@ -126,12 +127,12 @@ func DeleteQueue(s Subscriber) error {
 	return deleteQueue(channel, &s)
 }
 
-// PrefixQueueInDev will prefix the queue name with the name of the APP_ENV variable.
+// PrefixQueueInDev will prefix the queue name with the name of your current user if of the APP_ENV variable is set
+// to a non production value ("production", "prod", "staging", "stage").
 // This is used for running a worker in your local environment but connecting to a stage
 // or prodution rabbit server.
 func (s *Subscriber) PrefixQueueInDev() {
 	env := appEnv()
-	nonDevEnvironments := []string{"production", "prod", "staging", "stage"}
 
 	if stringInSlice(env, nonDevEnvironments) {
 		return
@@ -144,6 +145,20 @@ func (s *Subscriber) PrefixQueueInDev() {
 	}
 
 	s.Queue = fmt.Sprintf("%s_%s", username, s.Queue)
+}
+
+// AutoDeleteInDev will set the Subscribers AutoDelete setting to true as long as you are in a development environement.
+// Non production environements have a APP_ENV value that isn't ("production", "prod", "staging", "stage").
+// This is used for running a worker in your local environment but connecting to a stage
+// or prodution rabbit server. You want to ensure the Subscriber gets AutoDeleted on the remote server.
+func (s *Subscriber) AutoDeleteInDev() {
+	env := appEnv()
+
+	if stringInSlice(env, nonDevEnvironments) {
+		return
+	}
+
+	s.AutoDelete = true
 }
 
 func appEnv() string {
