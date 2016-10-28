@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/brettallred/rabbit-go"
+	"github.com/brettallred/go-rabbit"
 	"github.com/stretchr/testify/assert"
 )
 

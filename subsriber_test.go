@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/brettallred/rabbit-go"
+	"github.com/brettallred/go-rabbit"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,4 +40,16 @@ func TestAutoDeleteInDev(t *testing.T) {
 
 	subscriber.AutoDeleteInDev()
 	assert.True(t, subscriber.AutoDelete)
+}
+
+func TestIsDevelopmentEnv(t *testing.T) {
+	os.Setenv("APP_ENV", "development")
+	assert.True(t, rabbit.IsDevelopmentEnv())
+
+	os.Setenv("APP_ENV", "production")
+	assert.False(t, rabbit.IsDevelopmentEnv())
+
+	os.Setenv("APP_ENV", "staging")
+	assert.False(t, rabbit.IsDevelopmentEnv())
+
 }
