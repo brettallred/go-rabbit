@@ -25,3 +25,19 @@ func TestPrefixQueueInDev(t *testing.T) {
 
 	assert.Equal(t, subscriber.Queue, fmt.Sprintf("%s_test.sample.event.created", userData.Username))
 }
+
+func TestAutoDeleteInDev(t *testing.T) {
+	var subscriber = rabbit.Subscriber{
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events",
+		Queue:       "test.sample.event.created",
+		RoutingKey:  "sample.event.created",
+	}
+
+	os.Setenv("APP_ENV", "development")
+	assert.False(t, subscriber.AutoDelete)
+
+	subscriber.AutoDeleteInDev()
+	assert.True(t, subscriber.AutoDelete)
+}
