@@ -134,7 +134,7 @@ func DeleteQueue(s Subscriber) error {
 func (s *Subscriber) PrefixQueueInDev() {
 	env := appEnv()
 
-	if stringInSlice(env, nonDevEnvironments) {
+	if !IsDevelopmentEnv() {
 		return
 	}
 
@@ -152,13 +152,15 @@ func (s *Subscriber) PrefixQueueInDev() {
 // This is used for running a worker in your local environment but connecting to a stage
 // or prodution rabbit server. You want to ensure the Subscriber gets AutoDeleted on the remote server.
 func (s *Subscriber) AutoDeleteInDev() {
-	env := appEnv()
-
-	if stringInSlice(env, nonDevEnvironments) {
-		return
+	if IsDevelopmentEnv() {
+		s.AutoDelete = true
 	}
+}
 
-	s.AutoDelete = true
+// IsDevelopmentEnv tells you if you are currently running in a development environment
+func IsDevelopmentEnv() bool {
+	env := appEnv()
+	return !stringInSlice(env, nonDevEnvironments)
 }
 
 func appEnv() string {
