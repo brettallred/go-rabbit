@@ -2,7 +2,10 @@ package rabbit
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"os/user"
 	"sync"
 )
 
@@ -93,6 +96,7 @@ func Register(s Subscriber, handler func(b []byte) bool) {
 	Handlers[s.RoutingKey] = handler
 }
 
+// CloseSubscribers removes all subscribers, handlers, and closes the amqp connection
 func CloseSubscribers() {
 	lock.Lock()
 	defer lock.Unlock()
@@ -106,6 +110,7 @@ func CloseSubscribers() {
 	}
 }
 
+//DeleteQueue does what it says, deletes a queue in rabbit
 func DeleteQueue(s Subscriber) error {
 	conn := connection()
 	if conn == nil {
@@ -119,4 +124,44 @@ func DeleteQueue(s Subscriber) error {
 		return errors.New("Can't delete a queue: can't create a channel")
 	}
 	return deleteQueue(channel, &s)
+}
+
+// PrefixQueueInDev will prefix the queue name with the name of the APP_ENV variable.
+// This is used for running a worker in your local environment but connecting to a stage
+// or prodution rabbit server.
+func (s *Subscriber) PrefixQueueInDev() {
+	env := appEnv()
+	nonDevEnvironments := []string{"production", "prod", "staging", "stage"}
+
+	if stringInSlice(env, nonDevEnvironments) {
+		return
+	}
+
+	username := currentUsersName()
+
+	if env == "test" {
+		username = "test_" + username
+	}
+
+	s.Queue = fmt.Sprintf("%s_%s", username, s.Queue)
+}
+
+func appEnv() string {
+	env := os.Getenv("APP_ENV")
+
+	// Check PLATFORM_ENV for backwards compatibility
+	if len(env) == 0 {
+		env = os.Getenv("PLATFORM_ENV")
+	}
+	return env
+}
+
+func currentUsersName() string {
+	username := "unknown"
+
+	if userData, err := user.Current(); err == nil {
+		username = userData.Username
+	}
+
+	return username
 }

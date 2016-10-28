@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+//Publisher allows you to publish events to RabbitMQ
 type Publisher struct {
 	_connection       *amqp.Connection
 	_channel          *amqp.Channel
@@ -158,6 +159,7 @@ func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
 		})
 }
 
+//Close will close the connection and channel for the Publisher
 func (p *Publisher) Close() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
