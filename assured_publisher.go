@@ -24,34 +24,45 @@ func NewAssuredPublisher() *AssuredPublisher {
 
 // Publish pushes items on to a RabbitMQ Queue.
 // For AssuredPublisher it waits for delivery confirmaiton and retries on failures
-func (p *AssuredPublisher) Publish(message string, subscriber *Subscriber) error {
+func (p *AssuredPublisher) Publish(message string, subscriber *Subscriber, cancel <-chan bool) bool {
 	for {
 		if err := (&p.Publisher).Publish(message, subscriber); err != nil {
 			log.Printf("Error on pushing into RabbitMQ: %v", err)
 			continue
 		}
-		if p.waitForConfirmation() {
+		if p.waitForConfirmation(cancel) {
 			break
 		}
+		select {
+		case <-cancel:
+			return false
+		default:
+		}
 	}
-	return nil
+	return true
 }
 
 // PublishBytes is the same as Publish but accepts a []byte instead of a string.
 // For AssuredPublisher it waits for delivery confirmaiton and retries on failures
-func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber) {
+func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, cancel <-chan bool) bool {
 	for {
 		if err := (&p.Publisher).PublishBytes(message, subscriber); err != nil {
 			log.Printf("Error on pushing into RabbitMQ: %v", err)
 			continue
 		}
-		if p.waitForConfirmation() {
+		if p.waitForConfirmation(cancel) {
 			break
 		}
+		select {
+		case <-cancel:
+			return false
+		default:
+		}
 	}
+	return true
 }
 
-func (p *AssuredPublisher) waitForConfirmation() bool {
+func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
 	log.Printf("Waiting for confirmation")
 	timeout := time.After(10 * time.Second)
 	select {
@@ -63,6 +74,8 @@ func (p *AssuredPublisher) waitForConfirmation() bool {
 		return false
 	case <-timeout:
 		log.Printf("RabbitMQ Timeout")
+		return false
+	case <-cancel:
 		return false
 	}
 }

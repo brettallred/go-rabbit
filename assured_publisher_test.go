@@ -19,9 +19,10 @@ func TestPublishAssured(t *testing.T) {
 
 	message := "Test Message"
 	publisher := rabbit.NewAssuredPublisher()
-	publisher.Publish(message, &subscriber)
+	ok := publisher.Publish(message, &subscriber, make(chan bool))
 
 	var result string
 	result, _ = rabbit.Pop(&subscriber)
 	assert.Equal(message, result)
+	assert.True(ok)
 }
