@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/brettallred/go-rabbit"
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,32 @@ func TestRegister(t *testing.T) {
 	assert := assert.New(t)
 	assert.Equal(1, len(rabbit.Subscribers), "Expected 1 Subscriber")
 	assert.Equal(1, len(rabbit.Handlers), "Expected 1 Handler")
+}
+
+func TestNack(t *testing.T) {
+	counter := 0
+	done := make(chan bool, 2)
+	nackHandler := func(payload []byte) bool {
+		counter++
+		done <- true
+		if counter == 1 {
+			return false
+		}
+		return true
+	}
+	rabbit.Register(subscriber, nackHandler)
+	rabbit.StartSubscribers()
+	rabbit.NewPublisher().Publish("{}", &subscriber)
+	for i := 0; i < 2; i++ {
+		select {
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	rabbit.CloseSubscribers()
+	assert.Equal(t, 2, counter)
 }
 
 func TestStartingSubscribers(t *testing.T) {
