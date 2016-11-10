@@ -24,8 +24,11 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) error {
 	handler := Handlers[subscriber.RoutingKey]
 	go func() {
 		for message := range messages {
-			ack := handler(message.Body)
-			message.Ack(ack)
+			if handler(message.Body) {
+				message.Ack(false)
+			} else {
+				message.Nack(false, true)
+			}
 		}
 	}()
 
