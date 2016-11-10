@@ -9,14 +9,12 @@ import (
 //AssuredPublisher allows you to publish events to RabbitMQ with implicit delivery confirmation
 type AssuredPublisher struct {
 	Publisher
-
-	confirmation chan amqp.Confirmation
 }
 
 // NewAssuredPublisher constructs a new AssuredPublisher instance
 func NewAssuredPublisher() *AssuredPublisher {
 	publisher := &AssuredPublisher{}
-	publisher.confirmation = publisher.NotifyPublish(make(chan amqp.Confirmation, 1))
+	publisher.NotifyPublish(make(chan amqp.Confirmation, 1))
 	for err := publisher.Confirm(false); err != nil; err = publisher.Confirm(false) {
 		logError(err, "Can't setup confirmations for a publisher")
 		time.Sleep(1)
@@ -57,7 +55,7 @@ func (p *AssuredPublisher) waitForConfirmation() bool {
 	log.Printf("Waiting for confirmation")
 	timeout := time.After(10 * time.Second)
 	select {
-	case confirmed := <-p.confirmation:
+	case confirmed := <-p._notifyPublish[0]:
 		if confirmed.Ack {
 			return true
 		}
