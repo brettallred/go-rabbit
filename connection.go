@@ -42,10 +42,13 @@ func connect() *amqp.Connection {
 	errorHandler := func(myConnection *amqp.Connection) {
 		for {
 			time.Sleep(100 * time.Millisecond)
+			lock.RLock()
 			if myConnection != _connection {
+				lock.RUnlock()
 				myConnection.Close()
 				return
 			}
+			lock.RUnlock()
 			select {
 			case <-errorChannel:
 				lock.Lock()
