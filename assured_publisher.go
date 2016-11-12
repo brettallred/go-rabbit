@@ -63,17 +63,16 @@ func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, 
 }
 
 func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
-	log.Printf("Waiting for confirmation")
 	timeout := time.After(10 * time.Second)
 	select {
 	case confirmed := <-p._notifyPublish[0]:
 		if confirmed.Ack {
 			return true
 		}
-		log.Printf("Unknown error (RabbitMQ Ack is false)")
+		log.Printf("Unknown Error (RabbitMQ Ack is false)")
 		return false
 	case <-timeout:
-		log.Printf("RabbitMQ Timeout")
+		log.Printf("Error: RabbitMQ Timeout")
 		return false
 	case <-cancel:
 		return false
