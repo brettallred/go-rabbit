@@ -1,10 +1,12 @@
 package rabbit
 
 import (
-	"github.com/streadway/amqp"
 	"log"
 	"os"
+	"sync"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 func connection() *amqp.Connection {
@@ -40,10 +42,13 @@ func connect() *amqp.Connection {
 	errorHandler := func(myConnection *amqp.Connection) {
 		for {
 			time.Sleep(100 * time.Millisecond)
+			lock.RLock()
 			if myConnection != _connection {
+				lock.RUnlock()
 				myConnection.Close()
 				return
 			}
+			lock.RUnlock()
 			select {
 			case <-errorChannel:
 				lock.Lock()
@@ -78,4 +83,77 @@ func connect() *amqp.Connection {
 	_connection.NotifyClose(errorChannel)
 	go errorHandler(_connection)
 	return _connection
+}
+
+// Connection represents an autorecovering connection
+type Connection struct {
+	connection *amqp.Connection
+	lock       sync.RWMutex
+}
+
+// Close closes a connection
+func (connection *Connection) Close() {
+	connection.lock.Lock()
+	defer connection.lock.Unlock()
+	if connection.connection != nil {
+		connection.connection.Close()
+		connection.connection = nil
+	}
+}
+
+// GetConnection returns an amqp.Connection stored in Connection. It establishes a new connection if needed.
+func (connection *Connection) GetConnection() *amqp.Connection {
+	connection.lock.Lock()
+	defer connection.lock.Unlock()
+	if connection.connection != nil {
+		return connection.connection
+	}
+	for {
+		if err := connection.connect(); err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return connection.connection
+}
+
+func (connection *Connection) connect() error {
+	connection.connection = nil
+	c, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
+	if err != nil {
+		logError(err, "Failed to connect to RabbitMQ")
+		return err
+	}
+
+	connection.connection = c
+	errorChannel := make(chan *amqp.Error)
+	errorHandler := func() {
+		for {
+			select {
+			case <-errorChannel:
+				connection.lock.Lock()
+				defer connection.lock.Unlock()
+				if connection.connection != nil {
+					go log.Printf("Error: RabbitMQ connection failed, we will redial")
+					c := connection.connection
+					connection.connection = nil
+					if c != nil {
+						go c.Close()
+					}
+				}
+				return
+			default:
+				connection.lock.RLock()
+				if connection.connection == nil {
+					connection.lock.RUnlock()
+					return
+				}
+				connection.lock.RUnlock()
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+	connection.connection.NotifyClose(errorChannel)
+	go errorHandler()
+	return nil
 }

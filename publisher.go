@@ -4,18 +4,19 @@ import (
 	"errors"
 	"github.com/streadway/amqp"
 	"log"
-	"os"
 	"sync"
 	"time"
 )
 
+var publisherConnection = &Connection{}
+
 //Publisher allows you to publish events to RabbitMQ
 type Publisher struct {
-	_connection       *amqp.Connection
 	_channel          *amqp.Channel
 	_notifyPublish    []chan amqp.Confirmation
 	_reliableMode     bool
 	_reliableModeWait bool
+	connection        *Connection
 	lock              sync.RWMutex
 }
 
@@ -24,115 +25,91 @@ func NewPublisher() *Publisher {
 	return &Publisher{}
 }
 
-func (p *Publisher) channel() (*amqp.Channel, error) {
+// GetChannel returns a publisher's channel. It opens a new channel if needed.
+func (p *Publisher) GetChannel() *amqp.Channel {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p._connection == nil {
-		err := p.connect()
-		if err != nil {
-			p._connection = nil
-			p._channel = nil
-			return nil, err
-		}
+	if p._channel != nil {
+		return p._channel
 	}
-	if p._channel == nil {
-		p._channel = createChannel(p._connection)
-		if p._channel == nil {
-			c := p._connection
-			p._connection = nil
-			if c != nil {
-				go c.Close()
-			}
-			return nil, errors.New("Can't create channel")
+	for {
+		if err := p.openChannel(); err == nil {
+			break
+		} else {
+			logError(err, "Can't open a new RabbitMQ channel")
 		}
-		for i := range p._notifyPublish {
-			p._channel.NotifyPublish(p._notifyPublish[i])
-		}
-		if p._reliableMode {
-			if err := p._channel.Confirm(p._reliableModeWait); err != nil {
-				c := p._connection
-				p._connection = nil
-				if c != nil {
-					go c.Close()
-				}
-				return nil, err
-			}
-		}
+		time.Sleep(1)
 	}
-
-	return p._channel, nil
+	return p._channel
 }
 
-func (p *Publisher) connect() error {
-	p._connection = nil
-	p._channel = nil
-	c, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
-	if err != nil {
-		logError(err, "Failed to connect to RabbitMQ")
-		return err
+func (p *Publisher) openChannel() error {
+	c := publisherConnection.GetConnection()
+	p._channel = createChannel(c)
+	if p._channel == nil {
+		publisherConnection.Close()
+		return errors.New("Can't create channel")
 	}
-
-	p._connection = c
+	oldChannel := p._channel
 	errorChannel := make(chan *amqp.Error)
 	errorHandler := func() {
 		for {
 			select {
 			case <-errorChannel:
+				log.Printf("RabbitMQ connection error")
 				p.lock.Lock()
 				defer p.lock.Unlock()
-				if p._connection != nil {
-					go log.Printf("RabbitMQ connection failed, we will redial")
-					c := p._connection
-					p._connection = nil
+				if oldChannel == p._channel {
 					p._channel = nil
-					if c != nil {
-						go c.Close()
-					}
 				}
 				return
 			default:
 				p.lock.RLock()
-				if p._connection == nil {
+				if p._channel != oldChannel {
 					p.lock.RUnlock()
 					return
 				}
 				p.lock.RUnlock()
-				time.Sleep(10 * time.Millisecond)
+				time.Sleep(1 * time.Second)
 			}
 		}
 	}
 	c.NotifyClose(errorChannel)
 	go errorHandler()
+	for i := range p._notifyPublish {
+		p._channel.NotifyPublish(p._notifyPublish[i])
+	}
+	if p._reliableMode {
+		if err := p._channel.Confirm(p._reliableModeWait); err != nil {
+			p._channel = nil
+			publisherConnection.Close()
+			return err
+		}
+	}
+
 	return nil
 }
 
 // Confirm enables reliable mode for the publisher.
 func (p *Publisher) Confirm(wait bool) error {
-	channel, err := p.channel()
+	p._reliableMode = true
+	p._reliableModeWait = wait
+	channel := p.GetChannel()
+	err := channel.Confirm(wait)
 	if err != nil {
-		return err
-	}
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	err = channel.Confirm(wait)
-	if err != nil {
-		p._reliableMode = true
-		p._reliableModeWait = wait
+		publisherConnection.Close()
 	}
 	return err
 }
 
 // NotifyPublish registers a listener for reliable publishing.
 func (p *Publisher) NotifyPublish(c chan amqp.Confirmation) chan amqp.Confirmation {
-	channel, _ := p.channel()
+	channel := p.GetChannel()
 	p.lock.Lock()
-	defer p.lock.Unlock()
 	p._notifyPublish = append(p._notifyPublish, c)
-	if channel != nil {
-		channel.NotifyPublish(c)
-		return c
-	}
-	return nil
+	p.lock.Unlock()
+	channel.NotifyPublish(c)
+	return c
 }
 
 // Publish pushes items on to a RabbitMQ Queue.
@@ -142,15 +119,14 @@ func (p *Publisher) Publish(message string, subscriber *Subscriber) error {
 
 // PublishBytes is the same as Publish but accepts a []byte instead of a string
 func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
-	channel, err := p.channel()
-	if err != nil {
-		return err
-	}
+	log.Printf("PublishBytes")
+	defer log.Printf("Done PublishBytes")
+	channel := p.GetChannel()
 
 	return channel.Publish(
 		subscriber.Exchange,   // exchange
 		subscriber.RoutingKey, // routing key
-		false, // mandatory
+		false, // mandatoryy
 		false, // immediate
 		amqp.Publishing{
 			ContentType:  "application/json",
@@ -163,10 +139,8 @@ func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
 func (p *Publisher) Close() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p._connection != nil {
-		c := p._connection
-		p._connection = nil
+	if p._channel != nil {
+		p._channel.Close()
 		p._channel = nil
-		c.Close()
 	}
 }
