@@ -126,7 +126,7 @@ func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
 	return channel.Publish(
 		subscriber.Exchange,   // exchange
 		subscriber.RoutingKey, // routing key
-		false, // mandatoryy
+		false, // mandatory
 		false, // immediate
 		amqp.Publishing{
 			ContentType:  "application/json",
