@@ -73,10 +73,10 @@ func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
 		if confirmed.Ack {
 			return true
 		}
-		log.Printf("Unknown error (RabbitMQ Ack is false)")
+		log.Printf("Unknown Error (RabbitMQ Ack is false)")
 		return false
 	case <-timeout:
-		log.Printf("RabbitMQ Timeout")
+		log.Printf("Error: RabbitMQ Timeout")
 		return false
 	case <-cancel:
 		return false

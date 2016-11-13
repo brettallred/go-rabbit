@@ -22,8 +22,7 @@ func NewPublisher() *Publisher {
 	return &Publisher{}
 }
 
-// GetChannel returns the amqp.Channel stored in the Publisher.
-// A new channel will be opened if needed.
+// GetChannel returns a publisher's channel. It opens a new channel if needed.
 func (p *Publisher) GetChannel() *amqp.Channel {
 	if p._channel != nil {
 		return p._channel
