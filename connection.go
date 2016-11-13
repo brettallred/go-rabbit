@@ -22,6 +22,27 @@ func connectionWithoutLock() *amqp.Connection {
 	return _connection
 }
 
+func handleConnectionError(myConnection *amqp.Connection) {
+	log.Printf("RabbitMQ connection failed, we will redial")
+	lock.Lock()
+	if myConnection == _connection {
+		_connection = nil
+	}
+	myConnection.Close()
+	if _connection == nil {
+		connectionWithoutLock()
+		if _connection != nil && subscribersStarted {
+			err := StartSubscribers()
+			if err != nil {
+				log.Printf("Erron on subscribing to RabbitMQ: %s", err.Error())
+				c := _connection
+				defer c.Close()
+			}
+		}
+	}
+	lock.Unlock()
+}
+
 func connect() *amqp.Connection {
 	var c *amqp.Connection
 	var err error
@@ -38,60 +59,27 @@ func connect() *amqp.Connection {
 	}
 
 	_connection = c
-	errorChannel := make(chan *amqp.Error)
+	var errorChannel chan *amqp.Error
 	errorHandler := func(myConnection *amqp.Connection) {
-		for {
-			time.Sleep(100 * time.Millisecond)
-			lock.RLock()
-			if myConnection != _connection {
-				lock.RUnlock()
-				myConnection.Close()
-				return
-			}
-			lock.RUnlock()
-			select {
-			case <-errorChannel:
-				lock.Lock()
-				if _connection != nil {
-					go log.Printf("RabbitMQ connection failed, we will redial")
-					c := _connection
-					_connection = nil
-					defer c.Close()
-					connectionWithoutLock()
-					if _connection != nil && subscribersStarted {
-						err := StartSubscribers()
-						if err != nil {
-							go log.Printf("Erron on subscribing to RabbitMQ: %s", err.Error())
-							c := _connection
-							_connection = nil
-							defer c.Close()
-						}
-					}
-				}
-				lock.Unlock()
-				return
-			default:
-				lock.RLock()
-				if _connection == nil {
-					lock.RUnlock()
-					return
-				}
-				lock.RUnlock()
-			}
+		select {
+		case <-errorChannel:
+			handleConnectionError(myConnection)
+			return
 		}
 	}
-	_connection.NotifyClose(errorChannel)
+	errorChannel = _connection.NotifyClose(make(chan *amqp.Error, 1))
 	go errorHandler(_connection)
 	return _connection
 }
 
-// Connection represents an autorecovering connection
+// Connection represents an object containing an amqp.Connection and a mutex.
+// It automatically restores connection after disconnection or error
 type Connection struct {
 	connection *amqp.Connection
 	lock       sync.RWMutex
 }
 
-// Close closes a connection
+// Close closes the connection
 func (connection *Connection) Close() {
 	connection.lock.Lock()
 	defer connection.lock.Unlock()
@@ -101,59 +89,60 @@ func (connection *Connection) Close() {
 	}
 }
 
-// GetConnection returns an amqp.Connection stored in Connection. It establishes a new connection if needed.
+// GetConnection returns the amqp.Connection stored inside the object.
+// A new connection will be created if need.
 func (connection *Connection) GetConnection() *amqp.Connection {
 	connection.lock.Lock()
 	defer connection.lock.Unlock()
 	if connection.connection != nil {
 		return connection.connection
 	}
-	for {
-		if err := connection.connect(); err == nil {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	connection.connect()
 	return connection.connection
+}
+
+func handlePublisherConnectionError(connection *Connection, myConnection *amqp.Connection) {
+	log.Printf("RabbitMQ Publisher's connection failed, we will redial")
+	defer myConnection.Close()
+	connection.lock.Lock()
+	defer connection.lock.Unlock()
+	if myConnection == connection.connection {
+		connection.connection = nil
+	}
+	if connection.connection == nil {
+		connection.connect()
+	}
 }
 
 func (connection *Connection) connect() error {
 	connection.connection = nil
-	c, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
-	if err != nil {
-		logError(err, "Failed to connect to RabbitMQ")
-		return err
+	var c *amqp.Connection
+	var err error
+	for {
+		log.Printf("Creating a new RabbitMQ connection for publisher")
+		c, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
+		if err != nil {
+			connection.connection = nil
+			logError(err, "Failed to connect to RabbitMQ")
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
+	log.Printf("RabbitMQ publisher's connection created")
 
 	connection.connection = c
 	errorChannel := make(chan *amqp.Error)
-	errorHandler := func() {
+	errorHandler := func(myConnection *amqp.Connection) {
 		for {
 			select {
 			case <-errorChannel:
-				connection.lock.Lock()
-				defer connection.lock.Unlock()
-				if connection.connection != nil {
-					go log.Printf("Error: RabbitMQ connection failed, we will redial")
-					c := connection.connection
-					connection.connection = nil
-					if c != nil {
-						go c.Close()
-					}
-				}
+				handlePublisherConnectionError(connection, c)
 				return
-			default:
-				connection.lock.RLock()
-				if connection.connection == nil {
-					connection.lock.RUnlock()
-					return
-				}
-				connection.lock.RUnlock()
-				time.Sleep(1 * time.Second)
 			}
 		}
 	}
 	connection.connection.NotifyClose(errorChannel)
-	go errorHandler()
+	go errorHandler(c)
 	return nil
 }
