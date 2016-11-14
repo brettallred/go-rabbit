@@ -72,13 +72,14 @@ func connect() *amqp.Connection {
 	return _connection
 }
 
-// Connection represents an autorecovering connection
+// Connection represents an object containing an amqp.Connection and a mutex.
+// It automatically restores connection after disconnection or error
 type Connection struct {
 	connection *amqp.Connection
 	lock       sync.RWMutex
 }
 
-// Close closes a connection
+// Close closes the connection
 func (connection *Connection) Close() {
 	connection.lock.Lock()
 	defer connection.lock.Unlock()
@@ -88,7 +89,8 @@ func (connection *Connection) Close() {
 	}
 }
 
-// GetConnection returns an amqp.Connection stored in Connection. It establishes a new connection if needed.
+// GetConnection returns the amqp.Connection stored inside the object.
+// A new connection will be created if need.
 func (connection *Connection) GetConnection() *amqp.Connection {
 	connection.lock.Lock()
 	defer connection.lock.Unlock()
