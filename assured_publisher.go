@@ -28,16 +28,18 @@ func (p *AssuredPublisher) Publish(message string, subscriber *Subscriber, cance
 	for {
 		if err := (&p.Publisher).Publish(message, subscriber); err != nil {
 			log.Printf("Error on pushing into RabbitMQ: %v", err)
+			select {
+			case <-cancel:
+				return false
+			default:
+			}
 			continue
 		}
-		if p.waitForConfirmation(cancel) {
-			break
-		}
-		select {
-		case <-cancel:
-			return false
-		default:
-		}
+		break
+	}
+	if !p.waitForConfirmation(cancel) {
+		p.Close()
+		return false
 	}
 	return true
 }
@@ -48,16 +50,18 @@ func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, 
 	for {
 		if err := (&p.Publisher).PublishBytes(message, subscriber); err != nil {
 			log.Printf("Error on pushing into RabbitMQ: %v", err)
+			select {
+			case <-cancel:
+				return false
+			default:
+			}
 			continue
 		}
-		if p.waitForConfirmation(cancel) {
-			break
-		}
-		select {
-		case <-cancel:
-			return false
-		default:
-		}
+		break
+	}
+	if !p.waitForConfirmation(cancel) {
+		p.Close()
+		return false
 	}
 	return true
 }

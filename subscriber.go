@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/user"
 	"sync"
+
+	"github.com/streadway/amqp"
 )
 
 var (
@@ -33,7 +35,9 @@ type Subscriber struct {
 // StartSubscribers spins up all of the registered Subscribers and consumes messages on their
 // respective queues.
 func StartSubscribers() error {
-	conn := connection()
+	lock.Lock()
+	defer lock.Unlock()
+	conn := connectionWithoutLock()
 	if conn == nil {
 		errorMessage := "Can't start subscribers: no connection"
 		log.Printf(errorMessage)
@@ -41,6 +45,10 @@ func StartSubscribers() error {
 	}
 
 	subscribersStarted = true
+	return startSubscribers(conn)
+}
+
+func startSubscribers(conn *amqp.Connection) error {
 	for _, subscriber := range Subscribers {
 		for i := 0; i < subscriber.Concurrency; i++ {
 			log.Printf(`Starting subscriber
@@ -57,7 +65,7 @@ func StartSubscribers() error {
 				subscriber.AutoDelete,
 			)
 
-			channel := createChannel(conn)
+			channel := createChannel(conn, true)
 			if channel == nil {
 				return errors.New("Failed to start subscriber: can't create a channel")
 			}
@@ -120,7 +128,7 @@ func DeleteQueue(s Subscriber) error {
 		return errors.New(errorMessage)
 	}
 
-	channel := createChannel(conn)
+	channel := createChannel(conn, false)
 	if channel == nil {
 		return errors.New("Can't delete a queue: can't create a channel")
 	}
