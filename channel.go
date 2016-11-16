@@ -11,17 +11,19 @@ func createAutoClosingChannel(conn *amqp.Connection) (*amqp.Channel, error) {
 	}
 
 	errorChannel := make(chan *amqp.Error, 1)
-	errorHandler := func() {
-		select {
-		case <-errorChannel:
-			lock.Lock()
-			defer lock.Unlock()
-			_connection.Close()
-			return
-		}
-	}
 	channel.NotifyClose(errorChannel)
-	go errorHandler()
+
+	go closeConnectionOnChannelNotifyClose(errorChannel)
 
 	return channel, nil
+}
+
+func closeConnectionOnChannelNotifyClose(errorChannel chan *amqp.Error) {
+	select {
+	case <-errorChannel:
+		lock.Lock()
+		defer lock.Unlock()
+		_connection.Close()
+		return
+	}
 }
