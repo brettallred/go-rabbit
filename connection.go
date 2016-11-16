@@ -112,7 +112,7 @@ func handlePublisherConnectionError(connection *Connection, myConnection *amqp.C
 	}
 }
 
-func (connection *Connection) connect() error {
+func (connection *Connection) connect() {
 	connection.connection = nil
 	var c *amqp.Connection
 	var err error
@@ -142,5 +142,4 @@ func (connection *Connection) connect() error {
 	}
 	connection.connection.NotifyClose(errorChannel)
 	go errorHandler(c)
-	return nil
 }

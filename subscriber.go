@@ -65,10 +65,12 @@ func startSubscribers(conn *amqp.Connection) error {
 				subscriber.AutoDelete,
 			)
 
-			channel := createChannel(conn, true)
-			if channel == nil {
+			channel, err := createChannel(conn, true)
+
+			if err != nil {
 				return errors.New("Failed to start subscriber: can't create a channel")
 			}
+
 			if err := createExchange(channel, &subscriber); err != nil {
 				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
@@ -122,16 +124,12 @@ func CloseSubscribers() {
 //DeleteQueue does what it says, deletes a queue in rabbit
 func DeleteQueue(s Subscriber) error {
 	conn := connection()
-	if conn == nil {
-		errorMessage := "Can't delete queue: no connection"
-		log.Printf(errorMessage)
-		return errors.New(errorMessage)
-	}
+	channel, err := createChannel(conn, false)
 
-	channel := createChannel(conn, false)
-	if channel == nil {
+	if err != nil {
 		return errors.New("Can't delete a queue: can't create a channel")
 	}
+
 	return deleteQueue(channel, &s)
 }
 
