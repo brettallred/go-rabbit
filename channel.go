@@ -5,15 +5,16 @@ import (
 	"log"
 )
 
-func createChannel(conn *amqp.Connection, autoCloseConnection bool) *amqp.Channel {
+func createChannel(conn *amqp.Connection, autoCloseConnection bool) (*amqp.Channel, error) {
 	if conn == nil {
 		log.Printf("Failed to open a channel: no connection")
-		return nil
+		return nil, nil //TODO Remove this guard clause
 	}
+
 	channel, err := conn.Channel()
+
 	if err != nil {
-		logError(err, "Failed to open a channel")
-		return nil
+		return nil, err
 	}
 
 	if autoCloseConnection {
@@ -31,5 +32,5 @@ func createChannel(conn *amqp.Connection, autoCloseConnection bool) *amqp.Channe
 		go errorHandler()
 	}
 
-	return channel
+	return channel, nil
 }

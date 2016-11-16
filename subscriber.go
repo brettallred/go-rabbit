@@ -65,10 +65,12 @@ func startSubscribers(conn *amqp.Connection) error {
 				subscriber.AutoDelete,
 			)
 
-			channel := createChannel(conn, true)
-			if channel == nil {
+			channel, err := createChannel(conn, true)
+
+			if err != nil {
 				return errors.New("Failed to start subscriber: can't create a channel")
 			}
+
 			if err := createExchange(channel, &subscriber); err != nil {
 				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
@@ -128,10 +130,12 @@ func DeleteQueue(s Subscriber) error {
 		return errors.New(errorMessage)
 	}
 
-	channel := createChannel(conn, false)
-	if channel == nil {
+	channel, err := createChannel(conn, false)
+
+	if err != nil {
 		return errors.New("Can't delete a queue: can't create a channel")
 	}
+
 	return deleteQueue(channel, &s)
 }
 
