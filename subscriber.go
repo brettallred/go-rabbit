@@ -124,12 +124,6 @@ func CloseSubscribers() {
 //DeleteQueue does what it says, deletes a queue in rabbit
 func DeleteQueue(s Subscriber) error {
 	conn := connection()
-	if conn == nil {
-		errorMessage := "Can't delete queue: no connection"
-		log.Printf(errorMessage)
-		return errors.New(errorMessage)
-	}
-
 	channel, err := createChannel(conn, false)
 
 	if err != nil {

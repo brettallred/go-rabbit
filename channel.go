@@ -2,15 +2,9 @@ package rabbit
 
 import (
 	"github.com/streadway/amqp"
-	"log"
 )
 
 func createChannel(conn *amqp.Connection, autoCloseConnection bool) (*amqp.Channel, error) {
-	if conn == nil {
-		log.Printf("Failed to open a channel: no connection")
-		return nil, nil //TODO Remove this guard clause
-	}
-
 	channel, err := conn.Channel()
 
 	if err != nil {
