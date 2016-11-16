@@ -65,7 +65,7 @@ func startSubscribers(conn *amqp.Connection) error {
 				subscriber.AutoDelete,
 			)
 
-			channel, err := createChannel(conn, true)
+			channel, err := createAutoClosingChannel(conn)
 
 			if err != nil {
 				return errors.New("Failed to start subscriber: can't create a channel")
@@ -124,7 +124,7 @@ func CloseSubscribers() {
 //DeleteQueue does what it says, deletes a queue in rabbit
 func DeleteQueue(s Subscriber) error {
 	conn := connection()
-	channel, err := createChannel(conn, false)
+	channel, err := conn.Channel()
 
 	if err != nil {
 		return errors.New("Can't delete a queue: can't create a channel")
