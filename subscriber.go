@@ -65,7 +65,7 @@ func startSubscribers(conn *amqp.Connection) error {
 				subscriber.AutoDelete,
 			)
 
-			channel, err := createAutoClosingChannel(conn)
+			channel, err := createConnectionClosingChannel(conn)
 
 			if err != nil {
 				return errors.New("Failed to start subscriber: can't create a channel")
