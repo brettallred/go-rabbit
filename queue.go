@@ -1,18 +1,11 @@
 package rabbit
 
 import (
-	"errors"
 	"github.com/streadway/amqp"
-	"log"
 )
 
-func createQueue(channel *amqp.Channel, subscriber *Subscriber) (*amqp.Queue, error) {
-	if channel == nil {
-		errorMessage := "Failed to declare a queue: no connection"
-		log.Printf(errorMessage)
-		return nil, errors.New(errorMessage)
-	}
-	queue, err := channel.QueueDeclare(
+func createQueue(channel *amqp.Channel, subscriber *Subscriber) error {
+	_, err := channel.QueueDeclare(
 		subscriber.Queue,      // name
 		subscriber.Durable,    // durable
 		subscriber.AutoDelete, // delete when usused
@@ -20,10 +13,7 @@ func createQueue(channel *amqp.Channel, subscriber *Subscriber) (*amqp.Queue, er
 		false, // no-wait
 		nil,   // arguments
 	)
-	if err != nil {
-		logError(err, "Failed to declare an queue")
-	}
-	return &queue, err
+	return err
 }
 
 func bindQueue(channel *amqp.Channel, subscriber *Subscriber) error {
