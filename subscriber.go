@@ -63,7 +63,7 @@ func startSubscribers(conn *amqp.Connection) error {
 		for i := 0; i < subscriber.Concurrency; i++ {
 			subscriber.printDetails()
 
-			channel, err := createAutoClosingChannel(conn)
+			channel, err := createConnectionClosingChannel(conn)
 
 			if err != nil {
 				return err
