@@ -34,7 +34,7 @@ func handleConnectionError(myConnection *amqp.Connection) {
 		if _connection != nil && subscribersStarted {
 			err := StartSubscribers()
 			if err != nil {
-				log.Printf("Erron on subscribing to RabbitMQ: %s", err.Error())
+				log.Printf("Error on subscribing to RabbitMQ: %s", err.Error())
 				c := _connection
 				defer c.Close()
 			}
