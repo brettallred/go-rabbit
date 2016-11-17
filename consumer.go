@@ -16,21 +16,24 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) error {
 		false,            // no wait
 		nil,              // args
 	)
-	logError(err, "Failed while trying to consume messages from channel")
+
 	if err != nil {
 		return err
 	}
 
 	handler := Handlers[subscriber.RoutingKey]
-	go func() {
-		for message := range messages {
-			if handler(message.Body) {
-				message.Ack(false)
-			} else {
-				message.Nack(false, true)
-			}
-		}
-	}()
+
+	go consumeMessages(messages, handler)
 
 	return nil
+}
+
+func consumeMessages(messages <-chan amqp.Delivery, handler func(b []byte) bool) {
+	for message := range messages {
+		if handler(message.Body) {
+			message.Ack(false)
+		} else {
+			message.Nack(false, true)
+		}
+	}
 }

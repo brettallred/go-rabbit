@@ -38,13 +38,15 @@ func (p *Publisher) GetChannel() *amqp.Channel {
 	return p._channel
 }
 
-func (p *Publisher) openChannel() error {
+func (p *Publisher) openChannel() (err error) {
 	c := publisherConnection.GetConnection()
-	p._channel = createChannel(c, false)
-	if p._channel == nil {
+	p._channel, err = c.Channel()
+
+	if err != nil {
 		log.Printf("Can't create a RabbitMQ channel for publisher")
 		return errors.New("Can't create channel for publisher")
 	}
+
 	for i := range p._notifyPublish {
 		p._channel.NotifyPublish(p._notifyPublish[i])
 	}
