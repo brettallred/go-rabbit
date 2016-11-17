@@ -75,7 +75,7 @@ func startSubscribers(conn *amqp.Connection) error {
 				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
 			}
-			if _, err := createQueue(channel, &subscriber); err != nil {
+			if err := createQueue(channel, &subscriber); err != nil {
 				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
 			}
