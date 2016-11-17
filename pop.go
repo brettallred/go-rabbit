@@ -16,7 +16,7 @@ func InitPop() {
 	}
 
 	if popChannel == nil {
-		popChannel, _ = createChannel(popConnection, false)
+		popChannel, _ = popConnection.Channel()
 	}
 }
 

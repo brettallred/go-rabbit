@@ -32,18 +32,28 @@ type Subscriber struct {
 	AutoDelete    bool
 }
 
+func (subscriber *Subscriber) printDetails() {
+	log.Printf(`Starting subscriber
+	Durable:    %t
+	Exchange:   %s
+	Queue:      %s
+	RoutingKey: %s
+	AutoDelete: %v
+	`,
+		subscriber.Durable,
+		subscriber.Exchange,
+		subscriber.Queue,
+		subscriber.RoutingKey,
+		subscriber.AutoDelete,
+	)
+}
+
 // StartSubscribers spins up all of the registered Subscribers and consumes messages on their
 // respective queues.
 func StartSubscribers() error {
 	lock.Lock()
 	defer lock.Unlock()
 	conn := connectionWithoutLock()
-	if conn == nil {
-		errorMessage := "Can't start subscribers: no connection"
-		log.Printf(errorMessage)
-		return errors.New(errorMessage)
-	}
-
 	subscribersStarted = true
 	return startSubscribers(conn)
 }
@@ -51,40 +61,23 @@ func StartSubscribers() error {
 func startSubscribers(conn *amqp.Connection) error {
 	for _, subscriber := range Subscribers {
 		for i := 0; i < subscriber.Concurrency; i++ {
-			log.Printf(`Starting subscriber
-		                Durable:    %t
-		                Exchange:   %s
-		                Queue:      %s
-		                RoutingKey: %s
-		                AutoDelete: %v
-		                `,
-				subscriber.Durable,
-				subscriber.Exchange,
-				subscriber.Queue,
-				subscriber.RoutingKey,
-				subscriber.AutoDelete,
-			)
+			subscriber.printDetails()
 
-			channel, err := createChannel(conn, true)
+			channel, err := createConnectionClosingChannel(conn)
 
 			if err != nil {
-				return errors.New("Failed to start subscriber: can't create a channel")
-			}
-
-			if err := createExchange(channel, &subscriber); err != nil {
-				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
 			}
-			if _, err := createQueue(channel, &subscriber); err != nil {
-				log.Printf("Failed to start subscriber: %v", err.Error())
+			if err := createExchange(channel, &subscriber); err != nil {
+				return err
+			}
+			if err := createQueue(channel, &subscriber); err != nil {
 				return err
 			}
 			if err := bindQueue(channel, &subscriber); err != nil {
-				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
 			}
 			if err := createConsumer(channel, &subscriber); err != nil {
-				log.Printf("Failed to start subscriber: %v", err.Error())
 				return err
 			}
 		}
@@ -124,13 +117,7 @@ func CloseSubscribers() {
 //DeleteQueue does what it says, deletes a queue in rabbit
 func DeleteQueue(s Subscriber) error {
 	conn := connection()
-	if conn == nil {
-		errorMessage := "Can't delete queue: no connection"
-		log.Printf(errorMessage)
-		return errors.New(errorMessage)
-	}
-
-	channel, err := createChannel(conn, false)
+	channel, err := conn.Channel()
 
 	if err != nil {
 		return errors.New("Can't delete a queue: can't create a channel")
@@ -143,7 +130,7 @@ func DeleteQueue(s Subscriber) error {
 // to a non production value ("production", "prod", "staging", "stage").
 // This is used for running a worker in your local environment but connecting to a stage
 // or prodution rabbit server.
-func (s *Subscriber) PrefixQueueInDev() {
+func (subscriber *Subscriber) PrefixQueueInDev() {
 	env := appEnv()
 
 	if !IsDevelopmentEnv() {
@@ -156,16 +143,16 @@ func (s *Subscriber) PrefixQueueInDev() {
 		username = "test_" + username
 	}
 
-	s.Queue = fmt.Sprintf("%s_%s", username, s.Queue)
+	subscriber.Queue = fmt.Sprintf("%s_%s", username, subscriber.Queue)
 }
 
 // AutoDeleteInDev will set the Subscribers AutoDelete setting to true as long as you are in a development environement.
 // Non production environements have a APP_ENV value that isn't ("production", "prod", "staging", "stage").
 // This is used for running a worker in your local environment but connecting to a stage
 // or prodution rabbit server. You want to ensure the Subscriber gets AutoDeleted on the remote server.
-func (s *Subscriber) AutoDeleteInDev() {
+func (subscriber *Subscriber) AutoDeleteInDev() {
 	if IsDevelopmentEnv() {
-		s.AutoDelete = true
+		subscriber.AutoDelete = true
 	}
 }
 
