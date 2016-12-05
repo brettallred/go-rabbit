@@ -2,15 +2,19 @@ package rabbit
 
 import (
 	"errors"
-	"github.com/streadway/amqp"
 	"log"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
-var publisherConnection = &Connection{}
+var (
+	publisherConnection = &Connection{}
+)
 
 //Publisher allows you to publish events to RabbitMQ
 type Publisher struct {
+	connection        *Connection
 	_channel          *amqp.Channel
 	_notifyPublish    []chan amqp.Confirmation
 	_reliableMode     bool
@@ -19,7 +23,12 @@ type Publisher struct {
 
 // NewPublisher constructs a new Publisher instance.
 func NewPublisher() *Publisher {
-	return &Publisher{}
+	return &Publisher{connection: publisherConnection}
+}
+
+// NewPublisherWithConnection constructs a new Publisher instance with a custom connection
+func NewPublisherWithConnection(connection *Connection) *Publisher {
+	return &Publisher{connection: connection}
 }
 
 // GetChannel returns a publisher's channel. It opens a new channel if needed.
@@ -39,7 +48,7 @@ func (p *Publisher) GetChannel() *amqp.Channel {
 }
 
 func (p *Publisher) openChannel() (err error) {
-	c := publisherConnection.GetConnection()
+	c := p.connection.GetConnection()
 	p._channel, err = c.Channel()
 
 	if err != nil {

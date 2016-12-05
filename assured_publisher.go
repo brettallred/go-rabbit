@@ -1,9 +1,10 @@
 package rabbit
 
 import (
-	"github.com/streadway/amqp"
 	"log"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 //AssuredPublisher allows you to publish events to RabbitMQ with implicit delivery confirmation
@@ -11,14 +12,25 @@ type AssuredPublisher struct {
 	Publisher
 }
 
-// NewAssuredPublisher constructs a new AssuredPublisher instance
-func NewAssuredPublisher() *AssuredPublisher {
-	publisher := &AssuredPublisher{}
-	publisher.NotifyPublish(make(chan amqp.Confirmation, 1))
-	for err := publisher.Confirm(false); err != nil; err = publisher.Confirm(false) {
+func (p *AssuredPublisher) construct() {
+	p.NotifyPublish(make(chan amqp.Confirmation, 1))
+	for err := p.Confirm(false); err != nil; err = p.Confirm(false) {
 		logError(err, "Can't setup confirmations for a publisher")
 		time.Sleep(1)
 	}
+}
+
+// NewAssuredPublisher constructs a new AssuredPublisher instance
+func NewAssuredPublisher() *AssuredPublisher {
+	publisher := &AssuredPublisher{Publisher{connection: publisherConnection}}
+	publisher.construct()
+	return publisher
+}
+
+// NewAssuredPublisherWithConnection constructs a new AssuredPublisher instance
+func NewAssuredPublisherWithConnection(connection *Connection) *AssuredPublisher {
+	publisher := &AssuredPublisher{Publisher{connection: connection}}
+	publisher.construct()
 	return publisher
 }
 

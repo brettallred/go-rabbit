@@ -74,8 +74,14 @@ func connect() *amqp.Connection {
 
 // Connection represents an autorecovering connection
 type Connection struct {
+	url        string
 	connection *amqp.Connection
 	lock       sync.RWMutex
+}
+
+// NewConnectionWithURL creates a new connection with a custom RabbitMQ URL
+func NewConnectionWithURL(url string) *Connection {
+	return &Connection{url: url}
 }
 
 // Close closes a connection
@@ -116,9 +122,13 @@ func (connection *Connection) connect() {
 	connection.connection = nil
 	var c *amqp.Connection
 	var err error
+	url := connection.url
+	if url == "" {
+		url = os.Getenv("RABBITMQ_URL")
+	}
 	for {
-		log.Printf("Creating a new RabbitMQ connection for publisher")
-		c, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
+		log.Printf("Creating a new RabbitMQ connection for publisher (%s)", url)
+		c, err = amqp.Dial(url)
 		if err != nil {
 			connection.connection = nil
 			logError(err, "Failed to connect to RabbitMQ")
