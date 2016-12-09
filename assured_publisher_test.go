@@ -25,6 +25,8 @@ func TestPublishAssured(t *testing.T) {
 
 	message := "Test Message"
 	publisher := rabbit.NewAssuredPublisher()
+	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
+	assert.Nil(err)
 	ok := publisher.Publish(message, &subscriber, make(chan bool))
 
 	var result string
