@@ -35,3 +35,17 @@ func deleteQueue(channel *amqp.Channel, subscriber *Subscriber) error {
 	_, err := channel.QueueDelete(subscriber.Queue, false, false, false)
 	return err
 }
+
+// CreateQueue creates a queue and binds it
+func CreateQueue(channel *amqp.Channel, subscriber *Subscriber) error {
+	if err := createExchange(channel, subscriber); err != nil {
+		return err
+	}
+	if err := createQueue(channel, subscriber); err != nil {
+		return err
+	}
+	if err := bindQueue(channel, subscriber); err != nil {
+		return err
+	}
+	return nil
+}

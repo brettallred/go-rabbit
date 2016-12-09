@@ -22,8 +22,11 @@ func connectionWithoutLock() *amqp.Connection {
 	return _connection
 }
 
-func handleConnectionError(myConnection *amqp.Connection) {
-	log.Printf("RabbitMQ connection failed, we will redial")
+func handleConnectionError(myConnection *amqp.Connection, e *amqp.Error) {
+	if e == nil {
+		return
+	}
+	log.Printf("RabbitMQ connection failed, we will redial: %+#v", e)
 	lock.Lock()
 	if myConnection == _connection {
 		_connection = nil
@@ -32,15 +35,19 @@ func handleConnectionError(myConnection *amqp.Connection) {
 	if _connection == nil {
 		connectionWithoutLock()
 		if _connection != nil && subscribersStarted {
-			err := StartSubscribers()
+			err := startSubscribers(_connection)
+			c := _connection
+			lock.Unlock()
 			if err != nil {
 				log.Printf("Error on subscribing to RabbitMQ: %s", err.Error())
-				c := _connection
 				defer c.Close()
 			}
+		} else {
+			lock.Unlock()
 		}
+	} else {
+		lock.Unlock()
 	}
-	lock.Unlock()
 }
 
 func connect() *amqp.Connection {
@@ -62,8 +69,8 @@ func connect() *amqp.Connection {
 	var errorChannel chan *amqp.Error
 	errorHandler := func(myConnection *amqp.Connection) {
 		select {
-		case <-errorChannel:
-			handleConnectionError(myConnection)
+		case e := <-errorChannel:
+			handleConnectionError(myConnection, e)
 			return
 		}
 	}
@@ -105,15 +112,16 @@ func (connection *Connection) GetConnection() *amqp.Connection {
 	return connection.connection
 }
 
-func handlePublisherConnectionError(connection *Connection, myConnection *amqp.Connection) {
-	log.Printf("RabbitMQ Publisher's connection failed, we will redial")
+func handlePublisherConnectionError(connection *Connection, myConnection *amqp.Connection, e *amqp.Error) {
+	if e == nil {
+		return
+	}
+	log.Printf("RabbitMQ Publisher's connection failed, we will redial. Error: %+#v", e)
 	defer myConnection.Close()
 	connection.lock.Lock()
 	defer connection.lock.Unlock()
 	if myConnection == connection.connection {
 		connection.connection = nil
-	}
-	if connection.connection == nil {
 		connection.connect()
 	}
 }
@@ -142,14 +150,22 @@ func (connection *Connection) connect() {
 	connection.connection = c
 	errorChannel := make(chan *amqp.Error)
 	errorHandler := func(myConnection *amqp.Connection) {
-		for {
-			select {
-			case <-errorChannel:
-				handlePublisherConnectionError(connection, c)
-				return
-			}
+		select {
+		case e := <-errorChannel:
+			handlePublisherConnectionError(connection, c, e)
+			return
 		}
 	}
 	connection.connection.NotifyClose(errorChannel)
 	go errorHandler(c)
+}
+
+// ReplaceConnection replaces the internal connection with a given one. For testing purposes only
+func (connection *Connection) ReplaceConnection(newConnection *amqp.Connection) {
+	connection.connection = newConnection
+}
+
+// ExposeSubscriberConnectionForTests returns the subscriber connection for testing purposes
+func ExposeSubscriberConnectionForTests() *amqp.Connection {
+	return _connection
 }

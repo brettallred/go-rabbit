@@ -68,13 +68,7 @@ func startSubscribers(conn *amqp.Connection) error {
 			if err != nil {
 				return err
 			}
-			if err := createExchange(channel, &subscriber); err != nil {
-				return err
-			}
-			if err := createQueue(channel, &subscriber); err != nil {
-				return err
-			}
-			if err := bindQueue(channel, &subscriber); err != nil {
+			if err := CreateQueue(channel, &subscriber); err != nil {
 				return err
 			}
 			if err := createConsumer(channel, &subscriber); err != nil {

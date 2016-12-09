@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"fmt"
+
 	"github.com/streadway/amqp"
 )
 
@@ -16,9 +18,14 @@ var (
 type Publisher struct {
 	connection        *Connection
 	_channel          *amqp.Channel
-	_notifyPublish    []chan amqp.Confirmation
+	_notifyPublish    []notifyPublishSpec
 	_reliableMode     bool
 	_reliableModeWait bool
+}
+
+type notifyPublishSpec struct {
+	channel chan amqp.Confirmation
+	size    int
 }
 
 // NewPublisher constructs a new Publisher instance.
@@ -41,6 +48,7 @@ func (p *Publisher) GetChannel() *amqp.Channel {
 			break
 		} else {
 			logError(err, "Can't open a new RabbitMQ channel for publisher")
+			p.Close()
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -52,12 +60,14 @@ func (p *Publisher) openChannel() (err error) {
 	p._channel, err = c.Channel()
 
 	if err != nil {
-		log.Printf("Can't create a RabbitMQ channel for publisher")
-		return errors.New("Can't create channel for publisher")
+		errorMsg := fmt.Sprintf("Can't create a RabbitMQ channel for publisher: %+#v", err)
+		log.Print(errorMsg)
+		return errors.New(errorMsg)
 	}
-
 	for i := range p._notifyPublish {
-		p._channel.NotifyPublish(p._notifyPublish[i])
+		ch := make(chan amqp.Confirmation, p._notifyPublish[i].size)
+		p._notifyPublish[i].channel = ch
+		p._channel.NotifyPublish(ch)
 	}
 	if p._reliableMode {
 		if err := p._channel.Confirm(p._reliableModeWait); err != nil {
@@ -84,11 +94,12 @@ func (p *Publisher) Confirm(wait bool) error {
 }
 
 // NotifyPublish registers a listener for reliable publishing.
-func (p *Publisher) NotifyPublish(c chan amqp.Confirmation) chan amqp.Confirmation {
+func (p *Publisher) NotifyPublish(size int) chan amqp.Confirmation {
 	channel := p.GetChannel()
-	p._notifyPublish = append(p._notifyPublish, c)
-	channel.NotifyPublish(c)
-	return c
+	notifyChannel := make(chan amqp.Confirmation, size)
+	p._notifyPublish = append(p._notifyPublish, notifyPublishSpec{notifyChannel, size})
+	channel.NotifyPublish(notifyChannel)
+	return notifyChannel
 }
 
 // Publish pushes items on to a RabbitMQ Queue.
@@ -117,5 +128,12 @@ func (p *Publisher) Close() {
 	if p._channel != nil {
 		p._channel.Close()
 		p._channel = nil
+	}
+	if p.connection != nil {
+		p.connection.Close()
+	} else {
+		if publisherConnection != nil {
+			publisherConnection.Close()
+		}
 	}
 }
