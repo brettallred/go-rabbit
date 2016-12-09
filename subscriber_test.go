@@ -8,8 +8,6 @@ import (
 
 	"time"
 
-	"log"
-
 	"github.com/brettallred/go-rabbit"
 	"github.com/stretchr/testify/assert"
 )
@@ -68,6 +66,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	}
 	rabbit.CloseSubscribers()
 	recreateQueue(t, &subscriber)
+	rabbit.CloseSubscribers()
 	done := make(chan bool, 100)
 	handler := func(payload []byte) bool {
 		done <- true
@@ -86,19 +85,20 @@ func TestSubscribersReconnection(t *testing.T) {
 		t.Fail()
 	}
 	publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, false) // reconnect
-	timeoutChannel := time.After(5 * time.Second)
+	recreateQueue(t, &subscriber)
+	timeoutChannel := time.After(15 * time.Second)
 	publisher = rabbit.NewPublisher()
 	for {
 		select {
 		case <-done:
 			return
 		case <-timeoutChannel:
-			log.Printf("timeout")
 			t.Error("Timeout on waiting for subscriber")
 			t.Fail()
 			return
 		default:
-			publisher.Publish("test", &subscriber)
+			err := publisher.Publish("test", &subscriber)
+			assert.Nil(t, err)
 			time.Sleep(1 * time.Second)
 		}
 	}

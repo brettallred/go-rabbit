@@ -104,7 +104,7 @@ func CloseSubscribers() {
 	if _connection != nil {
 		c := _connection
 		_connection = nil
-		go c.Close()
+		c.Close()
 	}
 }
 
