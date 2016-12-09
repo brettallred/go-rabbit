@@ -1,13 +1,10 @@
 package rabbit_test
 
 import (
-	"testing"
-
-	"time"
-
 	"fmt"
-
 	"sync"
+	"testing"
+	"time"
 
 	"github.com/brettallred/go-rabbit"
 	"github.com/stretchr/testify/assert"

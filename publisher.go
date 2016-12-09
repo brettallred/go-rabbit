@@ -2,10 +2,9 @@ package rabbit
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"time"
-
-	"fmt"
 
 	"github.com/streadway/amqp"
 )

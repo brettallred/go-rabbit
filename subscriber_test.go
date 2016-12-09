@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/user"
 	"testing"
-
 	"time"
 
 	"github.com/brettallred/go-rabbit"
