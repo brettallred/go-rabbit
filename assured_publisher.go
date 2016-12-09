@@ -34,7 +34,6 @@ func (p *AssuredPublisher) construct() {
 }
 
 func (p *AssuredPublisher) initNewChannel() {
-	log.Print("Init new channel")
 	channel := p.GetChannel()
 	p.closeChannel = channel.NotifyClose(make(chan *amqp.Error, 1))
 	p.sequenceNumber = 0
