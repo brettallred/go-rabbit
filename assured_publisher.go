@@ -146,22 +146,17 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 	if len(p.unconfirmedMessages) == 0 {
 		return true
 	}
-	result := true
 	for {
 		select {
 		case confirmed := <-p._notifyPublish[0].channel:
 			if confirmed.Ack {
 				delete(p.unconfirmedMessages, confirmed.DeliveryTag)
 			} else {
-				nilConfirmation := amqp.Confirmation{}
-				if nilConfirmation == confirmed {
-					return result
-				}
 				log.Printf("Unknown Error (RabbitMQ Ack is false)")
-				result = false
+				return false
 			}
 		default:
-			return result
+			return true
 		}
 	}
 }
