@@ -45,6 +45,8 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 
 	publisher := rabbit.NewAssuredPublisher()
 	publisher.SetExplicitWaiting()
+	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
+	assert.Nil(err)
 
 	publisher.GetChannel().QueueDelete(subscriber.Queue, true, false, false)
 

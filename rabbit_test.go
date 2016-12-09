@@ -48,6 +48,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestNack(t *testing.T) {
+	recreateQueue(t, &subscriber)
 	counter := 0
 	done := make(chan bool, 2)
 	nackHandler := func(payload []byte) bool {
