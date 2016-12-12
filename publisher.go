@@ -130,9 +130,7 @@ func (p *Publisher) Close() {
 	}
 	if p.connection != nil {
 		p.connection.Close()
-	} else {
-		if publisherConnection != nil {
-			publisherConnection.Close()
-		}
+	} else if publisherConnection != nil {
+		publisherConnection.Close()
 	}
 }
