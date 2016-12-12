@@ -64,6 +64,7 @@ func TestSubscribersReconnection(t *testing.T) {
 		RoutingKey:  "sample.event.created",
 	}
 	rabbit.CloseSubscribers()
+	rabbit.CreateQueue(rabbit.NewPublisher().GetChannel(), &subscriber)
 	recreateQueue(t, &subscriber)
 	rabbit.CloseSubscribers()
 	done := make(chan bool, 100)
