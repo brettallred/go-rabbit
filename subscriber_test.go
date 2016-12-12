@@ -69,7 +69,10 @@ func TestSubscribersReconnection(t *testing.T) {
 	rabbit.CloseSubscribers()
 	done := make(chan bool, 100)
 	handler := func(payload []byte) bool {
-		done <- true
+		go func() {
+			time.Sleep(1)
+			done <- true
+		}()
 		return true
 	}
 	rabbit.Register(subscriber, handler)
@@ -84,7 +87,7 @@ func TestSubscribersReconnection(t *testing.T) {
 		t.Error("Timeout on waiting for subscriber")
 		t.Fail()
 	}
-	publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, false) // reconnect
+	publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, true) // reconnect
 	recreateQueue(t, &subscriber)
 	time.Sleep(5 * time.Second)
 	timeoutChannel := time.After(5 * time.Second)
