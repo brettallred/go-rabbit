@@ -13,13 +13,13 @@ const unconfirmedMessagesMaxCount = 1000
 type AssuredPublisher struct {
 	Publisher
 
-	unconfirmedMessages     map[uint64]*unconfirmedMessageSpec
+	unconfirmedMessages     map[uint64]*unconfirmedMessage
 	sequenceNumber          uint64
 	waitAfterEachPublishing bool
 	closeChannel            chan *amqp.Error
 }
 
-type unconfirmedMessageSpec struct {
+type unconfirmedMessage struct {
 	message    string
 	subscriber *Subscriber
 }
@@ -56,11 +56,11 @@ func (p *AssuredPublisher) reconnect(cancel <-chan bool) bool {
 }
 
 func (p *AssuredPublisher) republishAllMessages(cancel <-chan bool) bool {
-	messages := make([]*unconfirmedMessageSpec, 0, len(p.unconfirmedMessages))
+	messages := make([]*unconfirmedMessage, 0, len(p.unconfirmedMessages))
 	for _, message := range p.unconfirmedMessages {
 		messages = append(messages, message)
 	}
-	p.unconfirmedMessages = map[uint64]*unconfirmedMessageSpec{}
+	p.unconfirmedMessages = map[uint64]*unconfirmedMessage{}
 	for _, message := range messages {
 		if !p.Publish(message.message, message.subscriber, cancel) { // if cancelled
 			return false
@@ -71,14 +71,14 @@ func (p *AssuredPublisher) republishAllMessages(cancel <-chan bool) bool {
 
 // NewAssuredPublisher constructs a new AssuredPublisher instance
 func NewAssuredPublisher() *AssuredPublisher {
-	publisher := &AssuredPublisher{Publisher: Publisher{connection: publisherConnection}, unconfirmedMessages: map[uint64]*unconfirmedMessageSpec{}, waitAfterEachPublishing: true}
+	publisher := &AssuredPublisher{Publisher: Publisher{connection: publisherConnection}, unconfirmedMessages: map[uint64]*unconfirmedMessage{}, waitAfterEachPublishing: true}
 	publisher.construct()
 	return publisher
 }
 
 // NewAssuredPublisherWithConnection constructs a new AssuredPublisher instance
 func NewAssuredPublisherWithConnection(connection *Connection) *AssuredPublisher {
-	publisher := &AssuredPublisher{Publisher: Publisher{connection: connection}, unconfirmedMessages: map[uint64]*unconfirmedMessageSpec{}, waitAfterEachPublishing: true}
+	publisher := &AssuredPublisher{Publisher: Publisher{connection: connection}, unconfirmedMessages: map[uint64]*unconfirmedMessage{}, waitAfterEachPublishing: true}
 	publisher.construct()
 	return publisher
 }
@@ -116,7 +116,7 @@ func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, 
 		break
 	}
 	p.sequenceNumber++
-	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessageSpec{string(message), subscriber}
+	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{string(message), subscriber}
 	if p.waitAfterEachPublishing && !p.waitForConfirmation(cancel) {
 		return false
 	}
