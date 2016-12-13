@@ -87,7 +87,7 @@ func TestSubscribersReconnection(t *testing.T) {
 		t.Error("Timeout on waiting for subscriber")
 		t.Fail()
 	}
-	publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, true) // reconnect
+	publisher.Close() // the subscriber should reconnect
 	timeoutChannel := time.After(5 * time.Second)
 	publisher = rabbit.NewPublisher()
 	for {
