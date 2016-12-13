@@ -88,7 +88,9 @@ func TestSubscribersReconnection(t *testing.T) {
 		t.Fail()
 	}
 	publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, true) // reconnect
+	time.Sleep(2 * time.Second)
 	recreateQueue(t, &subscriber)
+	time.Sleep(2 * time.Second)
 	timeoutChannel := time.After(5 * time.Second)
 	publisher = rabbit.NewPublisher()
 	for {

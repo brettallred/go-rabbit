@@ -36,9 +36,11 @@ func handleConnectionError(myConnection *amqp.Connection, e *amqp.Error) {
 		connectionWithoutLock()
 		if _connection != nil && subscribersStarted {
 			err := startSubscribers(_connection)
+			c := _connection
 			lock.Unlock()
 			if err != nil {
 				log.Printf("Error on subscribing to RabbitMQ: %s", err.Error())
+				defer c.Close()
 			}
 		} else {
 			lock.Unlock()
