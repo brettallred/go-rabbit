@@ -23,11 +23,12 @@ func connectionWithoutLock() *amqp.Connection {
 }
 
 func handleConnectionError(myConnection *amqp.Connection, e *amqp.Error) {
-	if e == nil {
+	lock.Lock()
+	if e == nil && _connection == nil { // the connection has been intentionally closed
+		lock.Unlock()
 		return
 	}
 	log.Printf("RabbitMQ connection failed, we will redial: %+#v", e)
-	lock.Lock()
 	if myConnection == _connection {
 		_connection = nil
 	}
