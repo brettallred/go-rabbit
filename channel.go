@@ -1,8 +1,6 @@
 package rabbit
 
-import (
-	"github.com/streadway/amqp"
-)
+import "github.com/streadway/amqp"
 
 func createConnectionClosingChannel(conn *amqp.Connection) (*amqp.Channel, error) {
 	channel, err := conn.Channel()
@@ -11,22 +9,5 @@ func createConnectionClosingChannel(conn *amqp.Connection) (*amqp.Channel, error
 		return channel, err
 	}
 
-	errorChannel := make(chan *amqp.Error, 1)
-	channel.NotifyClose(errorChannel)
-
-	go closeConnectionOnChannelNotifyClose(errorChannel)
-
 	return channel, nil
-}
-
-func closeConnectionOnChannelNotifyClose(errorChannel chan *amqp.Error) {
-	select {
-	case <-errorChannel:
-		lock.Lock()
-		defer lock.Unlock()
-		if _connection != nil {
-			_connection.Close()
-		}
-		return
-	}
 }
