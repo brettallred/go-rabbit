@@ -70,7 +70,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	done := make(chan bool, 100)
 	handler := func(payload []byte) bool {
 		go func() {
-			time.Sleep(1)
+			time.Sleep(1 * time.Second)
 			done <- true
 		}()
 		return true
