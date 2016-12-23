@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"testing"
+	"time"
 
 	"github.com/brettallred/go-rabbit"
 	"github.com/stretchr/testify/assert"
@@ -52,4 +53,55 @@ func TestIsDevelopmentEnv(t *testing.T) {
 	os.Setenv("APP_ENV", "staging")
 	assert.False(t, rabbit.IsDevelopmentEnv())
 
+}
+
+func TestSubscribersReconnection(t *testing.T) {
+	var subscriber = rabbit.Subscriber{
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events_test",
+		Queue:       "test.sample.event.created",
+		RoutingKey:  "sample.event.created",
+	}
+	rabbit.CloseSubscribers()
+	rabbit.CreateQueue(rabbit.NewPublisher().GetChannel(), &subscriber)
+	recreateQueue(t, &subscriber)
+	rabbit.CloseSubscribers()
+	done := make(chan bool, 100)
+	handler := func(payload []byte) bool {
+		go func() {
+			time.Sleep(1 * time.Second)
+			done <- true
+		}()
+		return true
+	}
+	rabbit.Register(subscriber, handler)
+	rabbit.StartSubscribers()
+	connection := rabbit.NewConnectionWithURL(os.Getenv("RABBITMQ_URL"))
+	connection.ReplaceConnection(rabbit.ExposeSubscriberConnectionForTests())
+	publisher := rabbit.NewPublisherWithConnection(connection)
+	publisher.Publish("test", &subscriber)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Timeout on waiting for subscriber")
+		t.Fail()
+	}
+	publisher.Close() // the subscriber should reconnect
+	timeoutChannel := time.After(5 * time.Second)
+	publisher = rabbit.NewPublisher()
+	for {
+		select {
+		case <-done:
+			return
+		case <-timeoutChannel:
+			t.Error("Timeout on waiting for subscriber")
+			t.Fail()
+			return
+		default:
+			err := publisher.Publish("test", &subscriber)
+			assert.Nil(t, err)
+			time.Sleep(1 * time.Second)
+		}
+	}
 }

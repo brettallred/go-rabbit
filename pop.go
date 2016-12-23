@@ -2,21 +2,22 @@ package rabbit
 
 import (
 	"errors"
-	"github.com/streadway/amqp"
 	"log"
+
+	"github.com/streadway/amqp"
 )
 
-var popConnection *amqp.Connection
+var popConnection *Connection
 var popChannel *amqp.Channel
 
 // InitPop intializes the RabbitMQ Connection and Channel for popping messages off of a queue.
 func InitPop() {
 	if popConnection == nil {
-		popConnection = connect()
+		popConnection = &Connection{}
 	}
 
 	if popChannel == nil {
-		popChannel, _ = popConnection.Channel()
+		popChannel, _ = popConnection.GetConnection().Channel()
 	}
 }
 
@@ -45,4 +46,13 @@ func Pop(subscriber *Subscriber) (string, error) {
 		return string(message.Body), nil
 	}
 	return "", err
+}
+
+// ResetPopConnection sets popConnection=nil and popChannel=nil for testing purposes
+func ResetPopConnection() {
+	if popConnection != nil {
+		popConnection.Close()
+	}
+	popConnection = nil
+	popChannel = nil
 }

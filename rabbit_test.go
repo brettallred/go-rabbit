@@ -30,14 +30,13 @@ func sampleTestEventCreatedHandler(payload []byte) bool {
 var subscriber = rabbit.Subscriber{
 	Concurrency: 5,
 	Durable:     true,
-	Exchange:    "events",
+	Exchange:    "events_test",
 	Queue:       "test.sample.event.created",
 	RoutingKey:  "sample.event.created",
 }
 
-func TestMain(m *testing.M) {
+func init() {
 	os.Setenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
-	os.Exit(m.Run())
 }
 
 func TestRegister(t *testing.T) {
@@ -49,6 +48,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestNack(t *testing.T) {
+	recreateQueue(t, &subscriber)
 	counter := 0
 	done := make(chan bool, 2)
 	nackHandler := func(payload []byte) bool {
@@ -77,4 +77,47 @@ func TestNack(t *testing.T) {
 func TestStartingSubscribers(t *testing.T) {
 	rabbit.Register(subscriber, sampleTestEventCreatedHandler)
 	rabbit.StartSubscribers()
+}
+
+func recreateQueue(t *testing.T, subscriber *rabbit.Subscriber) {
+	done := make(chan bool)
+	publisher := rabbit.NewPublisher()
+	go func() {
+		for {
+			if _, err := publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, true); err == nil {
+				close(done)
+				return
+			} else {
+				log.Printf("Error on removing queue: %+#v", err)
+				publisher.Close()
+			}
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Can't delete queue")
+		t.Fail()
+		return
+	}
+
+	done = make(chan bool)
+	go func() {
+		for {
+			if err := rabbit.CreateQueue(publisher.GetChannel(), subscriber); err == nil {
+				close(done)
+				return
+			} else {
+				log.Printf("Error on creating queue: %+#v", err)
+				publisher.Close()
+			}
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Can't create queue")
+		t.Fail()
+		return
+	}
 }
