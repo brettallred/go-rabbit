@@ -17,7 +17,7 @@ type AssuredPublisher struct {
 	sequenceNumber          uint64
 	waitAfterEachPublishing bool
 	closeChannel            chan *amqp.Error
-	confirmationHandler     func(interface{})
+	confirmationHandler     func(amqp.Confirmation, interface{})
 }
 
 type unconfirmedMessage struct {
@@ -91,7 +91,7 @@ func (p *AssuredPublisher) SetExplicitWaiting() {
 }
 
 // SetConfirmationHandler sets the handler which is called for every confirmation received
-func (p *AssuredPublisher) SetConfirmationHandler(confirmationHandler func(interface{})) {
+func (p *AssuredPublisher) SetConfirmationHandler(confirmationHandler func(amqp.Confirmation, interface{})) {
 	p.confirmationHandler = confirmationHandler
 }
 
@@ -155,7 +155,7 @@ func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
 	select {
 	case confirmed := <-p._notifyPublish[0].channel:
 		if p.confirmationHandler != nil {
-			p.confirmationHandler(p.unconfirmedMessages[confirmed.DeliveryTag].arg)
+			p.confirmationHandler(confirmed, p.unconfirmedMessages[confirmed.DeliveryTag].arg)
 		}
 		if confirmed.Ack {
 			delete(p.unconfirmedMessages, confirmed.DeliveryTag)
@@ -180,7 +180,7 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 		select {
 		case confirmed := <-p._notifyPublish[0].channel:
 			if p.confirmationHandler != nil {
-				p.confirmationHandler(p.unconfirmedMessages[confirmed.DeliveryTag].arg)
+				p.confirmationHandler(confirmed, p.unconfirmedMessages[confirmed.DeliveryTag].arg)
 			}
 			if confirmed.Ack {
 				delete(p.unconfirmedMessages, confirmed.DeliveryTag)
