@@ -21,7 +21,7 @@ type AssuredPublisher struct {
 }
 
 type unconfirmedMessage struct {
-	message    string
+	message    []byte
 	subscriber *Subscriber
 	arg        interface{}
 }
@@ -64,7 +64,7 @@ func (p *AssuredPublisher) republishAllMessages(cancel <-chan bool) bool {
 	}
 	p.unconfirmedMessages = map[uint64]*unconfirmedMessage{}
 	for _, message := range messages {
-		if !p.Publish(message.message, message.subscriber, cancel) { // if cancelled
+		if !p.publishBytesWithArgWithoutLock(message.message, message.subscriber, message.arg, cancel) { // if cancelled
 			return false
 		}
 	}
@@ -117,6 +117,12 @@ func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, 
 // The argument will be stored for passing into the confirmation handler.
 // For AssuredPublisher it waits for delivery confirmaiton and retries on failures
 func (p *AssuredPublisher) PublishBytesWithArg(message []byte, subscriber *Subscriber, arg interface{}, cancel <-chan bool) bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return p.publishBytesWithArgWithoutLock(message, subscriber, arg, cancel)
+}
+
+func (p *AssuredPublisher) publishBytesWithArgWithoutLock(message []byte, subscriber *Subscriber, arg interface{}, cancel <-chan bool) bool {
 	for {
 		p.ensureChannel(cancel)
 		if len(p.unconfirmedMessages) >= unconfirmedMessagesMaxCount {
@@ -124,7 +130,7 @@ func (p *AssuredPublisher) PublishBytesWithArg(message []byte, subscriber *Subsc
 				return false
 			}
 		}
-		if err := (&p.Publisher).PublishBytes(message, subscriber); err != nil {
+		if err := (&p.Publisher).publishBytesWithoutLock(message, subscriber); err != nil {
 			log.Printf("Error on pushing into RabbitMQ: %v", err)
 			select {
 			case <-cancel:
@@ -136,7 +142,7 @@ func (p *AssuredPublisher) PublishBytesWithArg(message []byte, subscriber *Subsc
 		break
 	}
 	p.sequenceNumber++
-	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{string(message), subscriber, arg}
+	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{message, subscriber, arg}
 	if p.waitAfterEachPublishing && !p.waitForConfirmation(cancel) {
 		return false
 	}
@@ -189,6 +195,9 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 
 // WaitForAllConfirmations waits for all confirmations and retries publishing if needed
 func (p *AssuredPublisher) WaitForAllConfirmations(cancel <-chan bool) bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	for {
 		if len(p.unconfirmedMessages) == 0 {
 			return true
