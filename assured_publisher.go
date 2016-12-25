@@ -17,11 +17,13 @@ type AssuredPublisher struct {
 	sequenceNumber          uint64
 	waitAfterEachPublishing bool
 	closeChannel            chan *amqp.Error
+	confirmationHandler     func(interface{})
 }
 
 type unconfirmedMessage struct {
 	message    string
 	subscriber *Subscriber
+	arg        interface{}
 }
 
 func (p *AssuredPublisher) construct() {
@@ -88,15 +90,33 @@ func (p *AssuredPublisher) SetExplicitWaiting() {
 	p.waitAfterEachPublishing = false
 }
 
+// SetConfirmationHandler sets the handler which is called for every confirmation received
+func (p *AssuredPublisher) SetConfirmationHandler(confirmationHandler func(interface{})) {
+	p.confirmationHandler = confirmationHandler
+}
+
 // Publish pushes items on to a RabbitMQ Queue.
 // For AssuredPublisher it waits for delivery confirmaiton and retries on failures
 func (p *AssuredPublisher) Publish(message string, subscriber *Subscriber, cancel <-chan bool) bool {
 	return p.PublishBytes([]byte(message), subscriber, cancel)
 }
 
+// PublishWithArg pushes items on to a RabbitMQ Queue. The argument will be stored for passing into the confirmation handler.
+// For AssuredPublisher it waits for delivery confirmaiton and retries on failures
+func (p *AssuredPublisher) PublishWithArg(message string, subscriber *Subscriber, arg interface{}, cancel <-chan bool) bool {
+	return p.PublishBytesWithArg([]byte(message), subscriber, arg, cancel)
+}
+
 // PublishBytes is the same as Publish but accepts a []byte instead of a string.
 // For AssuredPublisher it waits for delivery confirmaiton and retries on failures
 func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, cancel <-chan bool) bool {
+	return p.PublishBytesWithArg(message, subscriber, nil, cancel)
+}
+
+// PublishBytesWithArg is the same as Publish but accepts a []byte instead of a string.
+// The argument will be stored for passing into the confirmation handler.
+// For AssuredPublisher it waits for delivery confirmaiton and retries on failures
+func (p *AssuredPublisher) PublishBytesWithArg(message []byte, subscriber *Subscriber, arg interface{}, cancel <-chan bool) bool {
 	for {
 		p.ensureChannel(cancel)
 		if len(p.unconfirmedMessages) >= unconfirmedMessagesMaxCount {
@@ -116,7 +136,7 @@ func (p *AssuredPublisher) PublishBytes(message []byte, subscriber *Subscriber, 
 		break
 	}
 	p.sequenceNumber++
-	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{string(message), subscriber}
+	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{string(message), subscriber, arg}
 	if p.waitAfterEachPublishing && !p.waitForConfirmation(cancel) {
 		return false
 	}
@@ -127,6 +147,9 @@ func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
 	timeout := time.After(10 * time.Second)
 	select {
 	case confirmed := <-p._notifyPublish[0].channel:
+		if p.confirmationHandler != nil {
+			p.confirmationHandler(p.unconfirmedMessages[confirmed.DeliveryTag].arg)
+		}
 		if confirmed.Ack {
 			delete(p.unconfirmedMessages, confirmed.DeliveryTag)
 			return true
@@ -149,6 +172,9 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 	for {
 		select {
 		case confirmed := <-p._notifyPublish[0].channel:
+			if p.confirmationHandler != nil {
+				p.confirmationHandler(p.unconfirmedMessages[confirmed.DeliveryTag].arg)
+			}
 			if confirmed.Ack {
 				delete(p.unconfirmedMessages, confirmed.DeliveryTag)
 			} else {
