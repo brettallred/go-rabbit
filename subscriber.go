@@ -40,7 +40,7 @@ func (subscriber *Subscriber) printDetails() {
 	Queue:      %s
 	RoutingKey: %s
 	AutoDelete: %v
-	ManualAck:    %v
+	ManualAck:  %v
 	`,
 		subscriber.Durable,
 		subscriber.Exchange,

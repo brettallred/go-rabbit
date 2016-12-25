@@ -2,6 +2,7 @@ package rabbit_test
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -99,4 +100,40 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 		assert.Fail(fmt.Sprintf("Timeout while reading messages. Messages read: %d", messagesRead))
 	}
 	assert.Len(messagesMap, 10000)
+}
+
+func TestDisableRepublishing(t *testing.T) {
+	var subscriber = rabbit.Subscriber{
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events_test",
+		Queue:       "test.assuredpublishsampleexpl.event.created",
+		RoutingKey:  "publishsampleexp.event.created",
+	}
+	assert := assert.New(t)
+
+	publisher := rabbit.NewAssuredPublisher()
+	publisher.SetExplicitWaiting()
+	publisher.DisableRepublishing()
+	handlerCalledMap := map[uint64]int{}
+	publisher.SetConfirmationHandler(func(confirmation amqp.Confirmation, arg interface{}) {
+		handlerCalledMap[confirmation.DeliveryTag]++
+		publisher.ForgetMessage(confirmation.DeliveryTag)
+	})
+	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
+	assert.Nil(err)
+
+	publisher.GetChannel().QueueDelete(subscriber.Queue, true, false, false)
+
+	for i := 0; i < 10; i++ {
+		ok := publisher.Publish(fmt.Sprintf("%d", i), &subscriber, make(chan bool))
+		assert.True(ok)
+		publisher.Close()
+	}
+	cancel := make(chan bool)
+	log.Println("Waiting for all confirmations")
+	publisher.WaitForAllConfirmations(cancel)
+	log.Println("Done waiting for all confirmations")
+	assert.Len(handlerCalledMap, 1)
+	assert.Equal(10, handlerCalledMap[1])
 }

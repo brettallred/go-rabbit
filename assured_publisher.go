@@ -18,6 +18,7 @@ type AssuredPublisher struct {
 	waitAfterEachPublishing bool
 	closeChannel            chan *amqp.Error
 	confirmationHandler     func(amqp.Confirmation, interface{})
+	doNotRepublish          bool
 }
 
 type unconfirmedMessage struct {
@@ -58,14 +59,20 @@ func (p *AssuredPublisher) reconnect(cancel <-chan bool) bool {
 }
 
 func (p *AssuredPublisher) republishAllMessages(cancel <-chan bool) bool {
-	messages := make([]*unconfirmedMessage, 0, len(p.unconfirmedMessages))
-	for _, message := range p.unconfirmedMessages {
-		messages = append(messages, message)
+	messages := map[uint64]*unconfirmedMessage{}
+	for deliveryTag, message := range p.unconfirmedMessages {
+		messages[deliveryTag] = message
 	}
 	p.unconfirmedMessages = map[uint64]*unconfirmedMessage{}
-	for _, message := range messages {
-		if !p.publishBytesWithArgWithoutLock(message.message, message.subscriber, message.arg, cancel) { // if cancelled
-			return false
+	for deliveryTag, message := range messages {
+		if !p.doNotRepublish {
+			if !p.publishBytesWithArgWithoutLock(message.message, message.subscriber, message.arg, cancel) { // if cancelled
+				return false
+			}
+		} else {
+			if p.confirmationHandler != nil {
+				p.confirmationHandler(amqp.Confirmation{Ack: false, DeliveryTag: deliveryTag}, message.arg)
+			}
 		}
 	}
 	return true
@@ -88,6 +95,11 @@ func NewAssuredPublisherWithConnection(connection *Connection) *AssuredPublisher
 // SetExplicitWaiting disables implicit waiting for a confirmation after each publishing
 func (p *AssuredPublisher) SetExplicitWaiting() {
 	p.waitAfterEachPublishing = false
+}
+
+// DisableRepublishing disables messages republishing
+func (p *AssuredPublisher) DisableRepublishing() {
+	p.doNotRepublish = true
 }
 
 // SetConfirmationHandler sets the handler which is called for every confirmation received
@@ -143,7 +155,11 @@ func (p *AssuredPublisher) publishBytesWithArgWithoutLock(message []byte, subscr
 		break
 	}
 	p.sequenceNumber++
-	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{message, subscriber, arg}
+	var body []byte
+	if !p.doNotRepublish {
+		body = message
+	}
+	p.unconfirmedMessages[p.sequenceNumber] = &unconfirmedMessage{body, subscriber, arg}
 	if p.waitAfterEachPublishing && !p.waitForConfirmation(cancel) {
 		return false
 	}
@@ -158,7 +174,7 @@ func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
 			p.confirmationHandler(confirmed, p.unconfirmedMessages[confirmed.DeliveryTag].arg)
 		}
 		if confirmed.Ack {
-			delete(p.unconfirmedMessages, confirmed.DeliveryTag)
+			p.ForgetMessage(confirmed.DeliveryTag)
 			return true
 		}
 		log.Printf("Unknown Error (RabbitMQ Ack is false)")
@@ -183,7 +199,7 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 				p.confirmationHandler(confirmed, p.unconfirmedMessages[confirmed.DeliveryTag].arg)
 			}
 			if confirmed.Ack {
-				delete(p.unconfirmedMessages, confirmed.DeliveryTag)
+				p.ForgetMessage(confirmed.DeliveryTag)
 			} else {
 				log.Printf("Unknown Error (RabbitMQ Ack is false)")
 				return false
@@ -194,7 +210,13 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 	}
 }
 
-// WaitForAllConfirmations waits for all confirmations and retries publishing if needed
+// ForgetMessage removes a message from the internal storage
+func (p *AssuredPublisher) ForgetMessage(deliveryTag uint64) {
+	delete(p.unconfirmedMessages, deliveryTag)
+}
+
+// WaitForAllConfirmations waits for all confirmations and retries publishing if needed.
+// Returns false only if is cancelled.
 func (p *AssuredPublisher) WaitForAllConfirmations(cancel <-chan bool) bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()
