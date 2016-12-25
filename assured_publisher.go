@@ -125,6 +125,7 @@ func (p *AssuredPublisher) PublishBytesWithArg(message []byte, subscriber *Subsc
 func (p *AssuredPublisher) publishBytesWithArgWithoutLock(message []byte, subscriber *Subscriber, arg interface{}, cancel <-chan bool) bool {
 	for {
 		p.ensureChannel(cancel)
+		p.receiveAllConfirmations()
 		if len(p.unconfirmedMessages) >= unconfirmedMessagesMaxCount {
 			if !p.waitForConfirmation(cancel) {
 				return false
