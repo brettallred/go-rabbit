@@ -23,17 +23,20 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) error {
 
 	handler := Handlers[subscriber.RoutingKey]
 
-	go consumeMessages(messages, handler)
+	go consumeMessages(messages, handler, subscriber.ManualAck)
 
 	return nil
 }
 
-func consumeMessages(messages <-chan amqp.Delivery, handler func(b []byte) bool) {
+func consumeMessages(messages <-chan amqp.Delivery, handler func(*amqp.Delivery) bool, manualAck bool) {
 	for message := range messages {
-		if handler(message.Body) {
-			message.Ack(false)
-		} else {
-			message.Nack(false, true)
+		result := handler(&message)
+		if !manualAck {
+			if result {
+				message.Ack(false)
+			} else {
+				message.Nack(false, true)
+			}
 		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/brettallred/go-rabbit"
+	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,10 +55,10 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 	messagesRead := 0
 	lock := sync.Mutex{}
 
-	subscriberHandler := func(payload []byte) bool {
+	subscriberHandler := func(delivery *amqp.Delivery) bool {
 		lock.Lock()
 		defer lock.Unlock()
-		messagesMap[string(payload)] = true
+		messagesMap[string(delivery.Body)] = true
 		messagesRead++
 		if len(messagesMap) == 10000 {
 			close(doneReading)
