@@ -28,9 +28,9 @@ func createConsumer(channel *amqp.Channel, subscriber *Subscriber) error {
 	return nil
 }
 
-func consumeMessages(messages <-chan amqp.Delivery, handler func(*amqp.Delivery) bool, manualAck bool) {
+func consumeMessages(messages <-chan amqp.Delivery, handler func(amqp.Delivery) bool, manualAck bool) {
 	for message := range messages {
-		result := handler(&message)
+		result := handler(message)
 		if !manualAck {
 			if result {
 				message.Ack(false)

@@ -54,15 +54,17 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 	messagesMap := map[string]bool{}
 	doneReading := make(chan bool)
 	messagesRead := 0
+	doneReadingIsClosed := false
 	lock := sync.Mutex{}
 
-	subscriberHandler := func(delivery *amqp.Delivery) bool {
+	subscriberHandler := func(delivery amqp.Delivery) bool {
 		lock.Lock()
 		defer lock.Unlock()
 		messagesMap[string(delivery.Body)] = true
 		messagesRead++
-		if len(messagesMap) == 10000 {
+		if len(messagesMap) == 10000 && !doneReadingIsClosed {
 			close(doneReading)
+			doneReadingIsClosed = true
 		}
 		return true
 	}
@@ -118,7 +120,6 @@ func TestDisableRepublishing(t *testing.T) {
 	handlerCalledMap := map[uint64]int{}
 	publisher.SetConfirmationHandler(func(confirmation amqp.Confirmation, arg interface{}) {
 		handlerCalledMap[confirmation.DeliveryTag]++
-		publisher.ForgetMessage(confirmation.DeliveryTag)
 	})
 	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
 	assert.Nil(err)

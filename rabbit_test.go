@@ -17,7 +17,7 @@ type TestEvent struct {
 	Email string `json:"Email"`
 }
 
-func sampleTestEventCreatedHandler(delivery *amqp.Delivery) bool {
+func sampleTestEventCreatedHandler(delivery amqp.Delivery) bool {
 	event := TestEvent{}
 	json.Unmarshal(delivery.Body, &event)
 	log.Printf("%s", event)
@@ -52,7 +52,7 @@ func TestNack(t *testing.T) {
 	recreateQueue(t, &subscriber)
 	counter := 0
 	done := make(chan bool, 2)
-	nackHandler := func(delivery *amqp.Delivery) bool {
+	nackHandler := func(delivery amqp.Delivery) bool {
 		counter++
 		done <- true
 		if counter == 1 {

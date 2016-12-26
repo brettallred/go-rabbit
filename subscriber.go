@@ -15,7 +15,7 @@ var (
 	// Subscribers is a map of all of the registered Subscribers
 	Subscribers map[string]Subscriber
 	// Handlers is a map of all of the registered Subscriber Handlers
-	Handlers           map[string]func(*amqp.Delivery) bool
+	Handlers           map[string]func(amqp.Delivery) bool
 	subscribersStarted = false
 	lock               sync.RWMutex
 	nonDevEnvironments = []string{"production", "prod", "staging", "stage"}
@@ -83,14 +83,14 @@ func startSubscribers(conn *amqp.Connection) error {
 }
 
 // Register adds a subscriber and handler to the subscribers pool
-func Register(s Subscriber, handler func(*amqp.Delivery) bool) {
+func Register(s Subscriber, handler func(amqp.Delivery) bool) {
 	if Subscribers == nil {
 		Subscribers = make(map[string]Subscriber)
-		Handlers = make(map[string]func(*amqp.Delivery) bool)
+		Handlers = make(map[string]func(amqp.Delivery) bool)
 	}
 
 	if Handlers == nil {
-		Handlers = make(map[string]func(*amqp.Delivery) bool)
+		Handlers = make(map[string]func(amqp.Delivery) bool)
 	}
 
 	Subscribers[s.RoutingKey] = s

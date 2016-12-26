@@ -40,6 +40,7 @@ func (p *AssuredPublisher) initNewChannel() {
 	channel := p.GetChannel()
 	p.closeChannel = channel.NotifyClose(make(chan *amqp.Error, 1))
 	p.sequenceNumber = 0
+	go p.continuoslyReceiveConfirmations()
 }
 
 func (p *AssuredPublisher) ensureChannel(cancel <-chan bool) {
@@ -137,7 +138,6 @@ func (p *AssuredPublisher) PublishBytesWithArg(message []byte, subscriber *Subsc
 func (p *AssuredPublisher) publishBytesWithArgWithoutLock(message []byte, subscriber *Subscriber, arg interface{}, cancel <-chan bool) bool {
 	for {
 		p.ensureChannel(cancel)
-		p.receiveAllConfirmations()
 		if len(p.unconfirmedMessages) >= unconfirmedMessagesMaxCount {
 			if !p.waitForConfirmation(cancel) {
 				return false
@@ -168,23 +168,41 @@ func (p *AssuredPublisher) publishBytesWithArgWithoutLock(message []byte, subscr
 
 func (p *AssuredPublisher) waitForConfirmation(cancel <-chan bool) bool {
 	timeout := time.After(10 * time.Second)
-	select {
-	case confirmed := <-p._notifyPublish[0].channel:
-		if p.confirmationHandler != nil {
-			p.confirmationHandler(confirmed, p.unconfirmedMessages[confirmed.DeliveryTag].arg)
+	for {
+		select {
+		case confirm := <-p._notifyPublish[0].channel:
+			if !p.handleConfirmationMessage(confirm) {
+				if !p.reconnect(cancel) {
+					return false
+				}
+				if len(p.unconfirmedMessages) == 0 {
+					return true
+				}
+			} else {
+				return true
+			}
+		case <-timeout:
+			log.Printf("Error: RabbitMQ Timeout")
+			return p.reconnect(cancel)
+		case <-cancel:
+			return false
 		}
-		if confirmed.Ack {
-			p.ForgetMessage(confirmed.DeliveryTag)
-			return true
+	}
+}
+
+// ReceiveAllConfirmations explicitly receives all awaiting confirmations
+func (p *AssuredPublisher) ReceiveAllConfirmations() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return p.receiveAllConfirmations()
+}
+
+func (p *AssuredPublisher) continuoslyReceiveConfirmations() {
+	for {
+		if !p.ReceiveAllConfirmations() {
+			return
 		}
-		log.Printf("Unknown Error (RabbitMQ Ack is false)")
-		p.receiveAllConfirmations()
-		return p.reconnect(cancel)
-	case <-timeout:
-		log.Printf("Error: RabbitMQ Timeout")
-		return p.reconnect(cancel)
-	case <-cancel:
-		return false
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -194,14 +212,8 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 	}
 	for {
 		select {
-		case confirmed := <-p._notifyPublish[0].channel:
-			if p.confirmationHandler != nil {
-				p.confirmationHandler(confirmed, p.unconfirmedMessages[confirmed.DeliveryTag].arg)
-			}
-			if confirmed.Ack {
-				p.ForgetMessage(confirmed.DeliveryTag)
-			} else {
-				log.Printf("Unknown Error (RabbitMQ Ack is false)")
+		case confirm := <-p._notifyPublish[0].channel:
+			if !p.handleConfirmationMessage(confirm) {
 				return false
 			}
 		default:
@@ -210,8 +222,25 @@ func (p *AssuredPublisher) receiveAllConfirmations() bool {
 	}
 }
 
-// ForgetMessage removes a message from the internal storage
-func (p *AssuredPublisher) ForgetMessage(deliveryTag uint64) {
+func (p *AssuredPublisher) handleConfirmationMessage(confirm amqp.Confirmation) bool {
+	if confirm.DeliveryTag == 0 {
+		log.Printf("Unknown Error (RabbitMQ Publisher's confirmation channel has been closed)")
+		return false
+	}
+	if p.confirmationHandler != nil {
+		p.confirmationHandler(confirm, p.unconfirmedMessages[confirm.DeliveryTag].arg)
+	}
+	if confirm.Ack || p.doNotRepublish {
+		p.forgetMessage(confirm.DeliveryTag)
+	}
+	if !confirm.Ack {
+		log.Printf("Unknown Error (RabbitMQ Ack is false)")
+	}
+	return true
+}
+
+// forgetMessage removes a message from the internal storage
+func (p *AssuredPublisher) forgetMessage(deliveryTag uint64) {
 	delete(p.unconfirmedMessages, deliveryTag)
 }
 

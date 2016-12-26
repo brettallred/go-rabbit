@@ -69,7 +69,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	recreateQueue(t, &subscriber)
 	rabbit.CloseSubscribers()
 	done := make(chan bool, 100)
-	handler := func(delivery *amqp.Delivery) bool {
+	handler := func(delivery amqp.Delivery) bool {
 		go func() {
 			time.Sleep(1 * time.Second)
 			done <- true
@@ -84,7 +84,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	publisher.Publish("test", &subscriber)
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Error("Timeout on waiting for subscriber")
 		t.Fail()
 	}
@@ -119,7 +119,7 @@ func TestSubscribersWithManualAck(t *testing.T) {
 	rabbit.CloseSubscribers()
 	recreateQueue(t, &subscriber)
 	done := make(chan bool)
-	handler := func(delivery *amqp.Delivery) bool {
+	handler := func(delivery amqp.Delivery) bool {
 		close(done)
 		return true
 	}
@@ -135,7 +135,7 @@ func TestSubscribersWithManualAck(t *testing.T) {
 	}
 	rabbit.CloseSubscribers()
 	done = make(chan bool)
-	handlerWithAck := func(delivery *amqp.Delivery) bool {
+	handlerWithAck := func(delivery amqp.Delivery) bool {
 		delivery.Ack(false)
 		close(done)
 		return true
@@ -149,7 +149,7 @@ func TestSubscribersWithManualAck(t *testing.T) {
 		t.Fail()
 	}
 	rabbit.CloseSubscribers()
-	handlerGuard := func(delivery *amqp.Delivery) bool {
+	handlerGuard := func(delivery amqp.Delivery) bool {
 		t.Error("Should not be called")
 		return true
 	}
