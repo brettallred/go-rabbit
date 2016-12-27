@@ -2,11 +2,13 @@ package rabbit_test
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/brettallred/go-rabbit"
+	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,15 +54,17 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 	messagesMap := map[string]bool{}
 	doneReading := make(chan bool)
 	messagesRead := 0
+	doneReadingIsClosed := false
 	lock := sync.Mutex{}
 
-	subscriberHandler := func(payload []byte) bool {
+	subscriberHandler := func(delivery amqp.Delivery) bool {
 		lock.Lock()
 		defer lock.Unlock()
-		messagesMap[string(payload)] = true
+		messagesMap[string(delivery.Body)] = true
 		messagesRead++
-		if len(messagesMap) == 10000 {
+		if len(messagesMap) == 10000 && !doneReadingIsClosed {
 			close(doneReading)
+			doneReadingIsClosed = true
 		}
 		return true
 	}
@@ -98,4 +102,39 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 		assert.Fail(fmt.Sprintf("Timeout while reading messages. Messages read: %d", messagesRead))
 	}
 	assert.Len(messagesMap, 10000)
+}
+
+func TestDisableRepublishing(t *testing.T) {
+	var subscriber = rabbit.Subscriber{
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events_test",
+		Queue:       "test.assuredpublishsampleexpl.event.created",
+		RoutingKey:  "publishsampleexp.event.created",
+	}
+	assert := assert.New(t)
+
+	publisher := rabbit.NewAssuredPublisher()
+	publisher.SetExplicitWaiting()
+	publisher.DisableRepublishing()
+	handlerCalledMap := map[uint64]int{}
+	publisher.SetConfirmationHandler(func(confirmation amqp.Confirmation, arg interface{}) {
+		handlerCalledMap[confirmation.DeliveryTag]++
+	})
+	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
+	assert.Nil(err)
+
+	publisher.GetChannel().QueueDelete(subscriber.Queue, true, false, false)
+
+	for i := 0; i < 10; i++ {
+		ok := publisher.Publish(fmt.Sprintf("%d", i), &subscriber, make(chan bool))
+		assert.True(ok)
+		publisher.Close()
+	}
+	cancel := make(chan bool)
+	log.Println("Waiting for all confirmations")
+	publisher.WaitForAllConfirmations(cancel)
+	log.Println("Done waiting for all confirmations")
+	assert.Len(handlerCalledMap, 1)
+	assert.Equal(10, handlerCalledMap[1])
 }

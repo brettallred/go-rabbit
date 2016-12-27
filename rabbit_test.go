@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/brettallred/go-rabbit"
+	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,9 +17,9 @@ type TestEvent struct {
 	Email string `json:"Email"`
 }
 
-func sampleTestEventCreatedHandler(payload []byte) bool {
+func sampleTestEventCreatedHandler(delivery amqp.Delivery) bool {
 	event := TestEvent{}
-	json.Unmarshal(payload, &event)
+	json.Unmarshal(delivery.Body, &event)
 	log.Printf("%s", event)
 	return true
 }
@@ -51,7 +52,7 @@ func TestNack(t *testing.T) {
 	recreateQueue(t, &subscriber)
 	counter := 0
 	done := make(chan bool, 2)
-	nackHandler := func(payload []byte) bool {
+	nackHandler := func(delivery amqp.Delivery) bool {
 		counter++
 		done <- true
 		if counter == 1 {

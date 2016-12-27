@@ -28,15 +28,15 @@ var subscriber = rabbit.Subscriber{
 	Durable:     true,
 	Exchange:    "events",
 	Queue:       "test.sample.event.created",
-	RoutingKey:  "sample.test_event.created",
+	RoutingKey:  "sample.event.created",
 }
 ```
 
 Next, you need to create a Handler that will handle the messages your subscriber receives
 
 ```go
-func sampleTestEventCreatedHandler(payload []byte) bool {
-	log.Printf("%s", payload)
+func sampleTestEventCreatedHandler(delivery amqp.Delivery) bool {
+	log.Printf("%s", delivery.Body)
 	return true
 }
 ```

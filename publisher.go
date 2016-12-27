@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -20,6 +21,7 @@ type Publisher struct {
 	_notifyPublish    []notifyPublishSpec
 	_reliableMode     bool
 	_reliableModeWait bool
+	lock              sync.Mutex
 }
 
 type notifyPublishSpec struct {
@@ -108,6 +110,14 @@ func (p *Publisher) Publish(message string, subscriber *Subscriber) error {
 
 // PublishBytes is the same as Publish but accepts a []byte instead of a string
 func (p *Publisher) PublishBytes(message []byte, subscriber *Subscriber) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	return p.publishBytesWithoutLock(message, subscriber)
+}
+
+// PublishBytes is the same as Publish but accepts a []byte instead of a string
+func (p *Publisher) publishBytesWithoutLock(message []byte, subscriber *Subscriber) error {
 	channel := p.GetChannel()
 
 	return channel.Publish(

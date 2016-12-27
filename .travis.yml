@@ -6,3 +6,4 @@ go:
 services:
   - rabbitmq
 
+script: go test -race -v

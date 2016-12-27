@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/brettallred/go-rabbit"
+	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,7 +69,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	recreateQueue(t, &subscriber)
 	rabbit.CloseSubscribers()
 	done := make(chan bool, 100)
-	handler := func(payload []byte) bool {
+	handler := func(delivery amqp.Delivery) bool {
 		go func() {
 			time.Sleep(1 * time.Second)
 			done <- true
@@ -83,7 +84,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	publisher.Publish("test", &subscriber)
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Error("Timeout on waiting for subscriber")
 		t.Fail()
 	}
@@ -103,5 +104,58 @@ func TestSubscribersReconnection(t *testing.T) {
 			assert.Nil(t, err)
 			time.Sleep(1 * time.Second)
 		}
+	}
+}
+
+func TestSubscribersWithManualAck(t *testing.T) {
+	var subscriber = rabbit.Subscriber{
+		Concurrency: 5,
+		Durable:     true,
+		Exchange:    "events_test",
+		Queue:       "test.sample.event.created",
+		RoutingKey:  "sample.event.created",
+		ManualAck:   true,
+	}
+	rabbit.CloseSubscribers()
+	recreateQueue(t, &subscriber)
+	done := make(chan bool)
+	handler := func(delivery amqp.Delivery) bool {
+		close(done)
+		return true
+	}
+	rabbit.Register(subscriber, handler)
+	rabbit.StartSubscribers()
+	publisher := rabbit.NewPublisher()
+	publisher.Publish("test", &subscriber)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Timeout on waiting for subscriber")
+		t.Fail()
+	}
+	rabbit.CloseSubscribers()
+	done = make(chan bool)
+	handlerWithAck := func(delivery amqp.Delivery) bool {
+		delivery.Ack(false)
+		close(done)
+		return true
+	}
+	rabbit.Register(subscriber, handlerWithAck)
+	rabbit.StartSubscribers()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Timeout on waiting for subscriber")
+		t.Fail()
+	}
+	rabbit.CloseSubscribers()
+	handlerGuard := func(delivery amqp.Delivery) bool {
+		t.Error("Should not be called")
+		return true
+	}
+	rabbit.Register(subscriber, handlerGuard)
+	rabbit.StartSubscribers()
+	select {
+	case <-time.After(5 * time.Second):
 	}
 }
