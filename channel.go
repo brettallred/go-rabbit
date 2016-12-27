@@ -20,11 +20,7 @@ func createConnectionClosingChannel(conn *amqp.Connection) (*amqp.Channel, error
 func closeConnectionOnChannelNotifyClose(errorChannel chan *amqp.Error, conn *amqp.Connection) {
 	select {
 	case <-errorChannel:
-		lock.Lock()
-		defer lock.Unlock()
-		if _connection == conn {
-			_connection.Close()
-		}
+		conn.Close()
 		return
 	}
 }
