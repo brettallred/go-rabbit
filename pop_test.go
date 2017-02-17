@@ -20,7 +20,7 @@ func TestPop(t *testing.T) {
 	assert := assert.New(t)
 
 	message := "Test Message"
-	rabbit.NewPublisher().Publish(message, &subscriber)
+	rabbit.NewPublisher(make(chan bool)).Publish(message, &subscriber)
 
 	rabbit.ResetPopConnection()
 	result, err := rabbit.Pop(&subscriber)

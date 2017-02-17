@@ -19,7 +19,7 @@ func TestPublish(t *testing.T) {
 
 	recreateQueue(t, &subscriber)
 	message := "Test Message"
-	publisher := rabbit.NewPublisher()
+	publisher := rabbit.NewPublisher(make(chan bool))
 	publisher.Publish(message, &subscriber)
 
 	var result string
@@ -35,7 +35,7 @@ func TestConfirm(t *testing.T) {
 		Queue:       "test.confirmsample.event.created",
 		RoutingKey:  "confirmsample.event.created",
 	}
-	publisher := rabbit.NewPublisher()
+	publisher := rabbit.NewPublisher(make(chan bool))
 	confirms := publisher.NotifyPublish(1)
 	publisher.Confirm(false)
 	publisher.Publish("something", &subscriber)

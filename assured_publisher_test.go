@@ -23,10 +23,10 @@ func TestPublishAssured(t *testing.T) {
 	assert := assert.New(t)
 
 	message := "Test Message"
-	publisher := rabbit.NewAssuredPublisher()
+	publisher := rabbit.NewAssuredPublisher(make(chan bool))
 	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
 	assert.Nil(err)
-	ok := publisher.Publish(message, &subscriber, make(chan bool))
+	ok := publisher.Publish(message, &subscriber)
 
 	var result string
 	result, _ = rabbit.Pop(&subscriber)
@@ -44,7 +44,8 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	publisher := rabbit.NewAssuredPublisher()
+	cancel := make(chan bool)
+	publisher := rabbit.NewAssuredPublisher(cancel)
 	publisher.SetExplicitWaiting()
 	err := rabbit.CreateQueue(publisher.GetChannel(), &subscriber)
 	assert.Nil(err)
@@ -78,13 +79,12 @@ func TestPublishWithExplicitWaiting(t *testing.T) {
 			publisher.GetChannel().ExchangeDelete(subscriber.Exchange, true, true)
 			publisher.GetChannel().ExchangeDeclare(subscriber.Exchange, "topic", false, false, false, false, nil)
 		}
-		ok := publisher.Publish(fmt.Sprintf("%d", i), &subscriber, make(chan bool))
+		ok := publisher.Publish(fmt.Sprintf("%d", i), &subscriber)
 		assert.True(ok)
 	}
 	done := make(chan bool)
-	cancel := make(chan bool)
 	go func() {
-		result := publisher.WaitForAllConfirmations(cancel)
+		result := publisher.WaitForAllConfirmations()
 		assert.True(result)
 		close(done)
 	}()
@@ -114,7 +114,8 @@ func TestDisableRepublishing(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	publisher := rabbit.NewAssuredPublisher()
+	cancel := make(chan bool)
+	publisher := rabbit.NewAssuredPublisher(cancel)
 	publisher.SetExplicitWaiting()
 	publisher.DisableRepublishing()
 	handlerCalledMap := map[uint64]int{}
@@ -127,13 +128,12 @@ func TestDisableRepublishing(t *testing.T) {
 	publisher.GetChannel().QueueDelete(subscriber.Queue, true, false, false)
 
 	for i := 0; i < 10; i++ {
-		ok := publisher.Publish(fmt.Sprintf("%d", i), &subscriber, make(chan bool))
+		ok := publisher.Publish(fmt.Sprintf("%d", i), &subscriber)
 		assert.True(ok)
 		publisher.Close()
 	}
-	cancel := make(chan bool)
 	log.Println("Waiting for all confirmations")
-	publisher.WaitForAllConfirmations(cancel)
+	publisher.WaitForAllConfirmations()
 	log.Println("Done waiting for all confirmations")
 	assert.Len(handlerCalledMap, 1)
 	assert.Equal(10, handlerCalledMap[1])
