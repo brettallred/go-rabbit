@@ -62,7 +62,7 @@ func TestNack(t *testing.T) {
 	}
 	rabbit.Register(subscriber, nackHandler)
 	rabbit.StartSubscribers()
-	rabbit.NewPublisher().Publish("{}", &subscriber)
+	rabbit.NewPublisher(make(chan bool)).Publish("{}", &subscriber)
 	for i := 0; i < 2; i++ {
 		select {
 		case <-done:
@@ -82,7 +82,7 @@ func TestStartingSubscribers(t *testing.T) {
 
 func recreateQueue(t *testing.T, subscriber *rabbit.Subscriber) {
 	done := make(chan bool)
-	publisher := rabbit.NewPublisher()
+	publisher := rabbit.NewPublisher(make(chan bool))
 	go func() {
 		for {
 			if _, err := publisher.GetChannel().QueueDelete(subscriber.Queue, false, false, true); err == nil {

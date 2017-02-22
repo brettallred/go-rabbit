@@ -65,7 +65,7 @@ func TestSubscribersReconnection(t *testing.T) {
 		RoutingKey:  "sample.event.created",
 	}
 	rabbit.CloseSubscribers()
-	rabbit.CreateQueue(rabbit.NewPublisher().GetChannel(), &subscriber)
+	rabbit.CreateQueue(rabbit.NewPublisher(make(chan bool)).GetChannel(), &subscriber)
 	recreateQueue(t, &subscriber)
 	rabbit.CloseSubscribers()
 	done := make(chan bool, 100)
@@ -80,7 +80,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	rabbit.StartSubscribers()
 	connection := rabbit.NewConnectionWithURL(os.Getenv("RABBITMQ_URL"))
 	connection.ReplaceConnection(rabbit.ExposeSubscriberConnectionForTests())
-	publisher := rabbit.NewPublisherWithConnection(connection)
+	publisher := rabbit.NewPublisherWithConnection(connection, make(chan bool))
 	publisher.Publish("test", &subscriber)
 	select {
 	case <-done:
@@ -90,7 +90,7 @@ func TestSubscribersReconnection(t *testing.T) {
 	}
 	publisher.Close() // the subscriber should reconnect
 	timeoutChannel := time.After(5 * time.Second)
-	publisher = rabbit.NewPublisher()
+	publisher = rabbit.NewPublisher(make(chan bool))
 	for {
 		select {
 		case <-done:
@@ -125,7 +125,7 @@ func TestSubscribersWithManualAck(t *testing.T) {
 	}
 	rabbit.Register(subscriber, handler)
 	rabbit.StartSubscribers()
-	publisher := rabbit.NewPublisher()
+	publisher := rabbit.NewPublisher(make(chan bool))
 	publisher.Publish("test", &subscriber)
 	select {
 	case <-done:
