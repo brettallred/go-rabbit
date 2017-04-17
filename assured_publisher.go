@@ -253,7 +253,7 @@ func (p *AssuredPublisher) continuoslyReceiveConfirmations() {
 		select {
 		case <-p.cancelChannel:
 			return
-		case <-time.After(1 * time.Second):
+		case <-time.After(50 * time.Millisecond):
 		}
 	}
 }
@@ -325,7 +325,7 @@ func (p *AssuredPublisher) WaitForAllConfirmations() bool {
 		select {
 		case <-p.cancelChannel:
 			return false
-		case <-time.After(300 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 		}
 	}
 }
