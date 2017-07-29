@@ -289,8 +289,12 @@ func (p *AssuredPublisher) handleConfirmationMessage(confirm amqp.Confirmation) 
 	}
 	p.lock.Lock()
 	confirmationHandler := p.confirmationHandler
-	arg := p.unconfirmedMessages[confirm.DeliveryTag].arg
+	message, messageExists := p.unconfirmedMessages[confirm.DeliveryTag]
 	p.lock.Unlock()
+	if !messageExists {
+		return true
+	}
+	arg := message.arg
 	if confirmationHandler != nil {
 		confirmationHandler(confirm, arg)
 	}
